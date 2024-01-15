@@ -1,0 +1,113 @@
+{
+  "name": "@cli107/transverto",
+  "description": "CLI transverto label management",
+  "keywords": [
+    "transverto",
+    "translate",
+    "label",
+    "json",
+    "ctv",
+    "label management",
+    "translator"
+  ],
+  "author": "Vadim",
+  "license": "MIT",
+  "version": "1.0.0",
+  "bugs": "https://github.com/4746/transverto/issues",
+  "homepage": "https://github.com/4746/transverto",
+  "repository": "4746/transverto",
+  "types": "dist/index.d.ts",
+  "exports": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "shx rm -rf dist && tsc -b",
+    "lint": "eslint ./src --ext .ts",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "posttest": "npm run lint",
+    "prepack": "npm run build && oclif manifest && oclif readme",
+    "prepare": "npm run build",
+    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "version": "oclif readme && git add README.md",
+    "win:delete:node_modules": "rd /s /q \"node_modules\"",
+    "npm:cache:clean": "npm cache clean --force",
+    "generate-config:bing": "node scripts/bing.generate-config.mjs",
+    "generate-config:terraprint": "node scripts/terraprint.generate-config.mjs"
+  },
+  "bin": {
+    "ctv": "./bin/run.js"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^3.3.0",
+    "@oclif/core": "^3.16.0",
+    "@oclif/plugin-help": "^6.0.10",
+    "chalk": "^5.3.0",
+    "fs-extra": "^11.2.0",
+    "got": "^14.0.0",
+    "listr2": "^8.0.1"
+  },
+  "devDependencies": {
+    "@oclif/prettier-config": "^0.2.1",
+    "@oclif/test": "^3.1.10",
+    "@types/chai": "^4.3.11",
+    "@types/cli-progress": "^3.11.5",
+    "@types/fs-extra": "^11.0.4",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^18.19.5",
+    "chai": "^4.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "eslint": "^8.56.0",
+    "eslint-config-oclif": "^5.0.0",
+    "eslint-config-oclif-typescript": "^3.0.35",
+    "eslint-config-prettier": "^9.1.0",
+    "mocha": "^10.2.0",
+    "oclif": "^4.2.0",
+    "shx": "^0.3.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "/bin",
+    "/dist",
+    "/oclif.manifest.json"
+  ],
+  "main": "dist/index.js",
+  "oclif": {
+    "bin": "ctv",
+    "dirname": "ctv",
+    "commands": "./dist/commands",
+    "scope": "@cli107",
+    "plugins": [
+      "@oclif/plugin-help"
+    ],
+    "topicSeparator": ":",
+    "topics": {
+      "translate": {
+        "description": "A simple Translator."
+      },
+      "label": {
+        "description": "Label management command."
+      },
+      "cache": {
+        "description": "Cache management command."
+      },
+      "init": {
+        "description": "Create a default configuration file"
+      }
+    },
+    "additionalVersionFlags": [
+      "-v"
+    ],
+    "additionalHelpFlags": [
+      "-h"
+    ],
+    "warn-if-update-available": {
+      "timeoutInDays": 7
+    }
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
+}

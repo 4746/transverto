@@ -1,0 +1,24 @@
+{
+  "extends": ["oclif", "oclif-typescript", "prettier"],
+  "rules": {
+    "unicorn/no-abusive-eslint-disable": "off",
+    "unicorn/no-array-reduce": "off",
+    "arrow-body-style": "off",
+    "object-shorthand": "off",
+    "no-else-return": "off",
+    "unicorn/no-array-for-each": "off",
+    "no-await-in-loop": "off",
+    "unicorn/switch-case-braces": "off",
+    "valid-jsdoc": "off",
+    "guard-for-in": "off",
+    "unicorn/catch-error-name": [
+      "error",
+      {
+        "ignore": [
+          "^error\\d*$",
+          "^reason\\d*$"
+        ]
+      }
+    ]
+  }
+}

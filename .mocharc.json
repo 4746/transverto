@@ -1,0 +1,21 @@
+{
+  "require":   [
+    "test/init.ts",
+    "ts-node/register"
+  ],
+  "extension": [
+    "ts"
+  ],
+  "watch-extensions": "ts",
+  "recursive": true,
+  "reporter": "spec",
+  "color": true,
+  "timeout": 20000,
+  "ui": "bdd",
+  "full-trace": true,
+  "exclude": "node_modules/**/*",
+  "node-option": [
+    "loader=ts-node/esm",
+    "trace-warnings"
+  ]
+}
