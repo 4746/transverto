@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "declaration": true,
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "target": "ES2022",
+    "rootDir": "src",
+    "strict": false,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "esModuleInterop": true,
+    "removeComments": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "types"
+    ]
+  },
+  "include": ["./src/**/*"],
+  "ts-node": {
+    "esm": true
+  }
+}
