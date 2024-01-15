@@ -12,7 +12,7 @@ import {LabelBaseCommand} from "../shared/label-base.command.js";
  * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev cache --help
  */
 export default class Cache extends LabelBaseCommand<typeof Cache> {
-  static description = 'Cache management command. \nCache dir: <%= config.cacheDir %>'
+  static description = 'Cache management command. \nCache dir: C:\\Users\\User\\AppData\\Local\\ctv'
 
   static examples = [
     '<%= config.bin %> <%= command.id %>',
