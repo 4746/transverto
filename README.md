@@ -13,23 +13,15 @@ Label management command.
 <!-- tocstop -->
 
 # Usage
-<!-- usage -->
 ```sh-session
-$ npm install -g @cli107/transverto
-$ ctv COMMAND
-running command...
-$ ctv (--version|-v)
-@cli107/transverto/1.0.0 win32-x64 node-v18.19.0
-$ ctv --help [COMMAND]
-USAGE
-  $ ctv COMMAND
-...
+$ npm install @cli107/transverto --save-dev
+$ ctv --help
 ```
-<!-- usagestop -->
 
 # Commands
 <!-- commands -->
 * [`ctv cache`](#ctv-cache)
+* [`ctv export:csv [LANGCODE]`](#ctv-exportcsv-langcode)
 * [`ctv help [COMMANDS]`](#ctv-help-commands)
 * [`ctv init`](#ctv-init)
 * [`ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-replace-sync)
@@ -60,6 +52,44 @@ EXAMPLES
 ```
 
 _See code: [src/commands/cache.ts](https://github.com/4746/transverto/blob/v1.0.0/src/commands/cache.ts)_
+
+## `ctv export:csv [LANGCODE]`
+
+Export translations to file.
+
+```
+USAGE
+  $ ctv export:csv [LANGCODE] [-d <value>] [--eol cr|crlf|lf] [-i <value>] [-o <value>] [--withBOM]
+
+ARGUMENTS
+  LANGCODE  The language code. If not specified, all available translations are exported.
+
+FLAGS
+  -d, --delimiter=<value>   [default: ,] delimiter of columns.
+  -i, --include=<value>     include language code
+  -o, --outputFile=<value>  [default: dist/output.csv] Path to save the file
+      --eol=<option>        [default: lf]
+                            <options: cr|crlf|lf>
+      --withBOM             [default: false] with BOM character
+
+DESCRIPTION
+  Export translations to file.
+
+EXAMPLES
+  $ ctv export:csv
+
+  $ ctv export:csv en
+
+  $ ctv export:csv en --include=uk
+
+  $ ctv export:csv en --outputFile=dist/output.csv
+
+  $ ctv export:csv --delimiter=,
+
+  $ ctv export:csv --eol=lf
+```
+
+_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v1.0.0/src/commands/export/csv.ts)_
 
 ## `ctv help [COMMANDS]`
 
