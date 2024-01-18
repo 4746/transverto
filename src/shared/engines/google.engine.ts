@@ -217,92 +217,14 @@ export class GoogleEngine implements BaseEngine {
       return null;
     }
 
-    /// {
-    //   "sentences":[
-    //     {
-    //       "trans":"Напишіть двом розробникам",
-    //       "orig":"Text two developers",
-    //       "backend":3,
-    //       "model_specification":[
-    //         { }
-    //       ],
-    //       "translation_engine_debug_info":[
-    //         {
-    //           "model_tracking":{
-    //             "checkpoint_md5":"2e8de74564aec87fb81cb0340a661858",
-    //             "launch_doc":"tea_SouthSlavicA_en2bebsbghrsrsluk_2022q2.md"
-    //           }
-    //         }
-    //       ]
-    //     },
-    //     {
-    //       "translit":"Napyshitʹ dvom rozrobnykam"
-    //     }
-    //   ],
-    //   "src":"en",
-    //   "alternative_translations":[
-    //     {
-    //       "src_phrase":"Text two developers",
-    //       "alternative":[
-    //         {
-    //           "word_postproc":"Напишіть двом розробникам",
-    //           "score":0,
-    //           "has_preceding_space":true,
-    //           "attach_to_next_token":false,
-    //           "backends":[
-    //             3
-    //           ],
-    //           "backend_infos":[
-    //             {
-    //               "backend":3
-    //             }
-    //           ]
-    //         },
-    //         {
-    //           "word_postproc":"Надішліть текстове повідомлення двом розробникам",
-    //           "score":0,
-    //           "has_preceding_space":true,
-    //           "attach_to_next_token":false,
-    //           "backends":[
-    //             8
-    //           ]
-    //         }
-    //       ],
-    //       "srcunicodeoffsets":[
-    //         {
-    //           "begin":0,
-    //           "end":19
-    //         }
-    //       ],
-    //       "raw_src_segment":"Text two developers",
-    //       "start_pos":0,
-    //       "end_pos":0
-    //     }
-    //   ],
-    //   "confidence":1,
-    //   "spell":{ },
-    //   "ld_result":{
-    //     "srclangs":[
-    //       "en"
-    //     ],
-    //     "srclangs_confidences":[
-    //       1
-    //     ],
-    //     "extended_srclangs":[
-    //       "en"
-    //     ]
-    //   }
-    // }
     let trans: string;
     let src: string;
 
     try {
-      if ('sentences' in body && Array.isArray(body.sentences)) {
-        [{trans},] = body.sentences;
-      }
-
-      if ('src' in body) {
-        src = body.src as string;
+      trans = UTIL.getNestedValue(body, 'sentences.0.trans') as string;
+      src = UTIL.getNestedValue(body, 'src') as string;
+      if (!src) {
+        src = UTIL.getNestedValue(body, 'ld_result.srclangs.0') as string;
       }
     } catch (reason) {
       console.log([body])
@@ -336,51 +258,14 @@ export class GoogleEngine implements BaseEngine {
       return null;
     }
 
-    // {
-    //   "sentences":[
-    //     {
-    //       "trans":"Напишіть двом розробникам",
-    //       "orig":"Text two developers",
-    //       "backend":3,
-    //       "model_specification":[
-    //         { }
-    //       ],
-    //       "translation_engine_debug_info":[
-    //         {
-    //           "model_tracking":{
-    //             "checkpoint_md5":"2e8de74564aec87fb81cb0340a661858",
-    //             "launch_doc":"tea_SouthSlavicA_en2bebsbghrsrsluk_2022q2.md"
-    //           }
-    //         }
-    //       ]
-    //     }
-    //   ],
-    //   "src":"en",
-    //   "confidence":1,
-    //   "spell":{ },
-    //   "ld_result":{
-    //     "srclangs":[
-    //       "en"
-    //     ],
-    //     "srclangs_confidences":[
-    //       1
-    //     ],
-    //     "extended_srclangs":[
-    //       "en"
-    //     ]
-    //   }
-    // }
-
     let trans: string;
     let src: string;
 
     try {
-      if ('sentences' in body && Array.isArray(body.sentences)) {
-        [{trans},] = body.sentences;
-      }
-
-      if ('src' in body) {
-        src = body.src as string;
+      trans = UTIL.getNestedValue(body, 'sentences.0.trans') as string;
+      src = UTIL.getNestedValue(body, 'src') as string;
+      if (!src) {
+        src = UTIL.getNestedValue(body, 'ld_result.srclangs.0') as string;
       }
     } catch (reason) {
       console.log([body])
@@ -414,9 +299,7 @@ export class GoogleEngine implements BaseEngine {
       searchParams: new URLSearchParams([
         ['rpcids', rpcids],
         ['source-path', '/'],
-        // ['f.sid', '2583840604490340159'],
         ['bl', 'boq_translate-webserver_20240115.08_p0'],
-        // ['hl', param.to],
         ['soc-app', '1'],
         ['soc-platform', '1'],
         ['soc-device', '1'],
