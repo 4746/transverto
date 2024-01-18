@@ -11,7 +11,7 @@ const readJsonFile = async (pathFile: string): Promise<NonNullable<object>> => {
 }
 
 const writeJsonFile = async (dataJson: NonNullable<object>, pathFile: string, spaces = 2) => {
-  return  writeJson(pathFile, dataJson, {
+  return writeJson(pathFile, dataJson, {
     encoding: 'utf8',
     spaces
   });

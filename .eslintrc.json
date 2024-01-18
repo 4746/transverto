@@ -11,6 +11,7 @@
     "unicorn/switch-case-braces": "off",
     "valid-jsdoc": "off",
     "guard-for-in": "off",
+    "unicorn/numeric-separators-style": "off",
     "unicorn/catch-error-name": [
       "error",
       {
