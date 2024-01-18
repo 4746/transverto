@@ -6,6 +6,7 @@ import {CTV_CACHE_ENGINE_FILE} from "../constants.js";
 import {BaseEngine, IParamTranslateText} from "../entities/translation.engine.js";
 import {Helper} from "../helper.js";
 import {BingEngine} from "./bing.engine.js";
+import {GoogleEngine} from "./google.engine.js";
 import {TerraEngine} from "./terra.engine.js";
 
 let CACHE_TRANSLATE: Record<string, string>;
@@ -20,6 +21,9 @@ export class TranslateEngine implements BaseEngine {
     switch (config?.engine) {
       case 'bing':
         this.engine = new BingEngine(config.bing)
+        break;
+      case 'google':
+        this.engine = new GoogleEngine(config.google, config.userAgent)
         break;
       case 'terra':
         this.engine = new TerraEngine(config.terra)

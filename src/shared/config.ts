@@ -1,8 +1,8 @@
 import {DEFAULT_USER_AGENT} from "./constants.js";
 import {IBingConfig} from "./entities/bing.config.js";
+import {IGoogleConfig} from "./entities/google.config.js";
 import {ITerraConfig} from "./entities/terra.config.js";
 import {TEngineTranslation} from "./entities/translation.engine.js";
-import {IGoogleConfig} from "./entities/google.config.js";
 
 export const LANG_CODE_DEFAULT = 'en';
 export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\-\\_]{3,100}$';
