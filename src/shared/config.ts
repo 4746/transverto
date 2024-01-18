@@ -1,5 +1,6 @@
 import {DEFAULT_USER_AGENT} from "./constants.js";
 import {IBingConfig} from "./entities/bing.config.js";
+import {IGoogleConfig} from "./entities/google.config.js";
 import {ITerraConfig} from "./entities/terra.config.js";
 import {TEngineTranslation} from "./entities/translation.engine.js";
 
@@ -22,6 +23,10 @@ export interface IConfig {
   engine: TEngineTranslation;
   engineUseCache?: false;
   /**
+   * Configuration options for Google setting.
+   */
+  google?: IGoogleConfig;
+  /**
    * Regular expression pattern for validating labels.
    *
    * The label should only contain lowercase letters, numbers, periods, hyphens, and underscores.
@@ -38,6 +43,7 @@ export interface IConfig {
    * Configuration options for TerraPrint.
    */
   terra?: ITerraConfig;
+  userAgent: string;
 }
 
 export const CONFIG_DEFAULT: IConfig = {
@@ -82,4 +88,5 @@ export const CONFIG_DEFAULT: IConfig = {
     toLangCode: 'uk',
     userAgent: DEFAULT_USER_AGENT
   },
+  userAgent: DEFAULT_USER_AGENT
 }

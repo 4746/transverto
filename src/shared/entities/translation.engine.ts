@@ -1,7 +1,7 @@
 /**
  * The types of translation engines available.
  */
-export type TEngineTranslation = 'bing' | 'terra';
+export type TEngineTranslation = 'bing' | 'google' | 'terra';
 
 export interface IParamTranslateText {
   /**
