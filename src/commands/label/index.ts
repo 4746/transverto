@@ -9,7 +9,7 @@ export default class Label extends Command {
     sync: Args.string({description: 'A command to update labels synchronously.', required: false}),
   }
 
-  static description = 'Represents a label management command.'
+  static description = 'Label management command.'
 
   async run(): Promise<void> {
     // const {args} = await this.parse(Label)
