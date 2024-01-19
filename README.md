@@ -13,9 +13,12 @@ Label management command.
 <!-- tocstop -->
 
 # Usage
-```sh-session
-$ npm install @cli107/transverto --save-dev
-$ ctv --help
+```shell
+npm install @cli107/transverto --save-dev
+```
+
+```shell
+ctv --help
 ```
 
 # Commands
@@ -27,6 +30,7 @@ $ ctv --help
 * [`ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-replace-sync)
 * [`ctv label:add [LABEL]`](#ctv-labeladd-label)
 * [`ctv label:delete LABEL`](#ctv-labeldelete-label)
+* [`ctv label:get [LABEL]`](#ctv-labelget-label)
 * [`ctv label:replace LABEL`](#ctv-labelreplace-label)
 * [`ctv label:sync`](#ctv-labelsync)
 
@@ -137,7 +141,7 @@ _See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v1.1.0
 
 ## `ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`
 
-Represents a label management command.
+Label management command.
 
 ```
 USAGE
@@ -151,7 +155,7 @@ ARGUMENTS
   SYNC     A command to update labels synchronously.
 
 DESCRIPTION
-  Represents a label management command.
+  Label management command.
 ```
 
 _See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/index.ts)_
@@ -212,6 +216,38 @@ EXAMPLES
 ```
 
 _See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/delete.ts)_
+
+## `ctv label:get [LABEL]`
+
+Display a list of translations for the specified label
+
+```
+USAGE
+  $ ctv label:get [LABEL] [--json] [-f <value>]
+
+ARGUMENTS
+  LABEL  A label key
+
+FLAGS
+  -f, --fromLangCode=<value>  The language code of source text.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Display a list of translations for the specified label
+
+EXAMPLES
+  $ ctv label:get
+
+  $ ctv label:get hello.world
+
+  $ ctv label:get hello.world -f="en"
+
+  $ ctv label:get hello.world -fen
+```
+
+_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/get.ts)_
 
 ## `ctv label:replace LABEL`
 
@@ -274,7 +310,7 @@ _See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/
   "basePath": "dist/i18n",
   "basePathEnum": "dist/i18n/language.ts",
   "bing": {
-    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"
+    "userAgent": "..."
   },
   "engine": "bing",
   "engineUseCache": false,
@@ -282,7 +318,8 @@ _See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/
   "languages": [
     "en"
   ],
-  "nameEnum": "LanguageLabel"
+  "nameEnum": "LanguageLabel",
+  "userAgent": "..."
 }
 ```
 
