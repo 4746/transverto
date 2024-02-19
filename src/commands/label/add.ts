@@ -65,9 +65,21 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
       labelValidation: this.cliConfig.labelValidation
     });
 
+    if (!this.silent) {
+      this.log(chalk.green(`Enter label:`), this.label);
+    }
+
     this.fromLangCode = await this.getLangCode(this.cliConfig.languages, flags.fromLangCode, this.cliConfig.langCodeDefault);
 
+    if (!this.silent) {
+      this.log(chalk.green(`Enter language:`), this.fromLangCode);
+    }
+
     this.translation = await this.getTranslation(flags.translation, this.fromLangCode);
+
+    if (!this.silent) {
+      this.log(chalk.green(`Enter translation:`), this.translation);
+    }
 
     const i18nPath = Helper.getPathLanguageFile(this.fromLangCode, this.cliConfig.basePath);
 
@@ -105,12 +117,6 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
 
     if (!this.noAutoTranslate) {
       param.push(`--auto-translate`)
-    }
-
-    if (!this.silent) {
-      this.log(chalk.green(`Enter label:`), this.label);
-      this.log(chalk.green(`Enter language:`), this.fromLangCode);
-      this.log(chalk.green(`Enter translation:`), this.translation);
     }
 
     await this.config.runCommand('label:sync', param);
