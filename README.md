@@ -55,7 +55,7 @@ EXAMPLES
   $ ctv cache --help
 ```
 
-_See code: [src/commands/cache.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/cache.ts)_
+_See code: [src/commands/cache.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/cache.ts)_
 
 ## `ctv export:csv [LANGCODE]`
 
@@ -93,7 +93,7 @@ EXAMPLES
   $ ctv export:csv --eol=lf
 ```
 
-_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/export/csv.ts)_
+_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/export/csv.ts)_
 
 ## `ctv help [COMMANDS]`
 
@@ -113,7 +113,7 @@ DESCRIPTION
   Display help for ctv.
 ```
 
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.0.12/src/commands/help.ts)_
+_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.0.13/src/commands/help.ts)_
 
 ## `ctv init`
 
@@ -137,7 +137,7 @@ EXAMPLES
   $ ctv init --force
 ```
 
-_See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/init.ts)_
+_See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/init.ts)_
 
 ## `ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`
 
@@ -158,7 +158,7 @@ DESCRIPTION
   Label management command.
 ```
 
-_See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/index.ts)_
+_See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/label/index.ts)_
 
 ## `ctv label:add [LABEL]`
 
@@ -190,7 +190,7 @@ EXAMPLES
   $ ctv label:add "hello.world" -t "Hello World!"
 ```
 
-_See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/add.ts)_
+_See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/label/add.ts)_
 
 ## `ctv label:delete LABEL`
 
@@ -215,7 +215,7 @@ EXAMPLES
   $ ctv label:delete hello.world
 ```
 
-_See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/delete.ts)_
+_See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/label/delete.ts)_
 
 ## `ctv label:get [LABEL]`
 
@@ -247,7 +247,7 @@ EXAMPLES
   $ ctv label:get hello.world -fen
 ```
 
-_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/get.ts)_
+_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/label/get.ts)_
 
 ## `ctv label:replace LABEL`
 
@@ -275,7 +275,7 @@ EXAMPLES
   $ ctv label:replace hello.world -t="Hello world!!!" -fen
 ```
 
-_See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/replace.ts)_
+_See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/label/replace.ts)_
 
 ## `ctv label:sync`
 
@@ -299,7 +299,7 @@ EXAMPLES
   $ ctv label:sync "hello.world" -f="en"
 ```
 
-_See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v1.1.0/src/commands/label/sync.ts)_
+_See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v1.2.3/src/commands/label/sync.ts)_
 <!-- commandsstop -->
 
 ---
