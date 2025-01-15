@@ -31,7 +31,7 @@ export abstract class LabelBaseCommand<T extends typeof Command> extends Command
     }
 
     return input({
-      default: UTIL.isString(label) ? label : null,
+      default: UTIL.isString(label) ? UTIL.trimChars(label.trim(), '.*+?^${}()|[\\]\\\\').trim() : null,
       message: `Enter label:`,
       validate: (v: string) => {
         let isValid: boolean;
