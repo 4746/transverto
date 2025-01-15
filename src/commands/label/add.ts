@@ -9,6 +9,13 @@ import {UTIL} from "../../shared/util.js";
 /**
  * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add hello.world  -f="en"
  * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add hello.world  -f="en" -t "Hello World!"
+ * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add "ggggg"
+ * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add "ggggg" -fen
+ * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add "\"ggggg\"" -fen
+ * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add \"ggggg\" -fen
+ * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add '"ggggg"' -fen
+ * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add \&quot;ggggg\&quot; -fen
+ * "C:\Program Files\nodejs\npm.cmd" run ctv label:add "\"ggggg\"" -fen
  */
 export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
   static args = {

@@ -178,6 +178,18 @@ const mergeDeep = (...sources: NonNullable<object>[]): NonNullable<object> => {
   return target;
 }
 
+/**
+ * Removes specified characters from the beginning and end of a given string.
+ *
+ * @param {string} str - The input string to trim.
+ * @param {string} chars - A string containing characters to be trimmed from both ends of the input string.
+ * @returns {string} - The resulting string after removing the specified characters from the start and end.
+ */
+export const trimChars = (str: string, chars: string): string => {
+  const pattern = new RegExp(`^[${chars}]+|[${chars}]+$`, 'g');
+  return str.replace(pattern, '');
+}
+
 export const UTIL = {
   deletePropertyPath,
   flattenObject,
@@ -188,4 +200,5 @@ export const UTIL = {
   replacePropertyPath,
   setNestedValue,
   sortObjByKey,
+  trimChars,
 }
