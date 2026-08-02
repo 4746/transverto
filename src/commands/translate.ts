@@ -140,8 +140,8 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
         requests = await projectService.planKeys(flags.key, from, flags.to)
       } else {
         const sourceText = flags.stdin ? await this.readStdin() : args.text
-        if (!sourceText || sourceText.trim().length === 0) {
-          throw new Error('Source text must not be empty.')
+        if (sourceText === undefined) {
+          throw new Error('Source text is required.')
         }
 
         requests = flags.to.map(to => ({from, sourceText, to}))
@@ -189,7 +189,7 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
           {name: 'skip', value: 'skip'},
         ],
         message: `${result.key ? `${result.key} -> ` : ''}${result.to}: ${result.translatedText}`,
-      })
+      }, {output: this.jsonEnabled() ? process.stderr : process.stdout})
 
       if (decision === 'accept') results.push(result)
       else {
