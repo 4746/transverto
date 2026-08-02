@@ -1,19 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import {
-  TRANSLATION_ENGINES,
-  validateLanguageCodes,
-  validateProjectPath,
-} from './config-builder.js'
+import {validateLanguageCodes, validateProjectPath} from './config-builder.js'
 import {CTV_CONFIG_FILE_NAME} from './constants.js'
+import {
+  resolveEngineProfile,
+  validateEngineConfiguration,
+} from './engine-profile.js'
 import {
   IDiagnostic,
   IDiagnosticSummary,
   IDoctorReport,
   TDiagnosticSeverity,
 } from './entities/diagnostic.js'
-import {TEngineTranslation} from './entities/translation.engine.js'
+import {IResolvedEngineProfile} from './entities/translation.engine.js'
 
 interface IDoctorOptions {
   checkEngine?: boolean
@@ -27,12 +27,6 @@ interface IDictionaryShape {
 }
 
 type TJsonObject = Record<string, unknown>
-
-const ENGINE_HEALTH_URLS: Record<TEngineTranslation, string> = {
-  bing: 'https://www.bing.com/translator',
-  google: 'https://translate.google.com',
-  terra: 'https://translate.terraprint.co',
-}
 
 const SEVERITY_ORDER: Record<TDiagnosticSeverity, number> = {
   error: 0,
@@ -213,25 +207,32 @@ const checkShapeConflicts = (
 }
 
 const checkEngineAvailability = async (
-  engine: TEngineTranslation,
+  profile: IResolvedEngineProfile,
   timeoutMs: number,
   diagnostics: IDiagnostic[],
 ): Promise<void> => {
   try {
-    const response = await fetch(ENGINE_HEALTH_URLS[engine], {
-      method: 'HEAD',
-      redirect: 'follow',
+    const headers: Record<string, string> = {}
+    if (profile.apiKey) headers.Authorization = `Bearer ${profile.apiKey}`
+
+    const response = await fetch(`${profile.baseUrl}/models`, {
+      headers,
       signal: AbortSignal.timeout(timeoutMs),
     })
 
-    if (response.status >= 500) {
+    if (!response.ok) {
       diagnostics.push(
         diagnostic(
           'ENGINE_UNAVAILABLE',
           'error',
-          `Translation engine "${engine}" returned HTTP ${response.status}.`,
+          `Translation engine profile "${profile.name}" returned HTTP ${response.status}.`,
           null,
-          {engine, status: response.status},
+          {
+            engine: profile.name,
+            model: profile.model,
+            provider: profile.provider,
+            status: response.status,
+          },
         ),
       )
       return
@@ -241,9 +242,14 @@ const checkEngineAvailability = async (
       diagnostic(
         'ENGINE_AVAILABLE',
         'info',
-        `Translation engine "${engine}" is reachable.`,
+        `Translation engine profile "${profile.name}" is reachable.`,
         null,
-        {engine, status: response.status},
+        {
+          engine: profile.name,
+          model: profile.model,
+          provider: profile.provider,
+          status: response.status,
+        },
       ),
     )
   } catch (error) {
@@ -251,16 +257,96 @@ const checkEngineAvailability = async (
       diagnostic(
         'ENGINE_UNAVAILABLE',
         'error',
-        `Translation engine "${engine}" could not be reached.`,
+        `Translation engine profile "${profile.name}" could not be reached.`,
         null,
         {
-          engine,
+          engine: profile.name,
+          model: profile.model,
+          provider: profile.provider,
           reason: error instanceof Error ? error.name : 'UnknownError',
           timeoutMs,
         },
       ),
     )
   }
+}
+
+interface IEngineDiagnosticOptions {
+  checkEngine?: boolean
+  config: TJsonObject
+  configFile: string
+  diagnostics: IDiagnostic[]
+  timeoutMs: number
+}
+
+const diagnoseEngine = async ({
+  checkEngine,
+  config,
+  configFile,
+  diagnostics,
+  timeoutMs,
+}: IEngineDiagnosticOptions): Promise<void> => {
+  let engines
+  try {
+    engines = validateEngineConfiguration(null, config.engines)
+  } catch (error) {
+    diagnostics.push(
+      diagnostic(
+        'CONFIG_ENGINE_PROFILE_INVALID',
+        'error',
+        'Configuration field "engines" contains an invalid profile.',
+        configFile,
+        {reason: error instanceof Error ? error.message : String(error)},
+      ),
+    )
+    return
+  }
+
+  if (config.engine === null) {
+    diagnostics.push(
+      diagnostic(
+        'ENGINE_NOT_CONFIGURED',
+        'warning',
+        'No active translation engine profile is configured.',
+        configFile,
+      ),
+    )
+    return
+  }
+
+  if (typeof config.engine !== 'string' || !(config.engine in engines)) {
+    diagnostics.push(
+      diagnostic(
+        'CONFIG_ENGINE_INVALID',
+        'error',
+        'Configuration field "engine" must reference a configured profile.',
+        configFile,
+        {engine: config.engine},
+      ),
+    )
+    return
+  }
+
+  let profile: IResolvedEngineProfile
+  try {
+    profile = resolveEngineProfile({engine: config.engine, engines})
+  } catch (error) {
+    diagnostics.push(
+      diagnostic(
+        'ENGINE_API_KEY_MISSING',
+        'error',
+        `Translation engine profile "${config.engine}" is missing its API key environment variable.`,
+        configFile,
+        {
+          engine: config.engine,
+          reason: error instanceof Error ? error.message : String(error),
+        },
+      ),
+    )
+    return
+  }
+
+  if (checkEngine) await checkEngineAvailability(profile, timeoutMs, diagnostics)
 }
 
 const finishReport = (diagnostics: IDiagnostic[]): IDoctorReport => {
@@ -390,35 +476,13 @@ export async function runDoctor(options: IDoctorOptions = {}): Promise<IDoctorRe
     )
   }
 
-  let engine: TEngineTranslation | undefined
-  if (
-    typeof parsedConfig.engine !== 'string' ||
-    !TRANSLATION_ENGINES.includes(parsedConfig.engine as TEngineTranslation)
-  ) {
-    diagnostics.push(
-      diagnostic(
-        'CONFIG_ENGINE_INVALID',
-        'error',
-        'Configuration field "engine" is not supported.',
-        configFile,
-        {supported: TRANSLATION_ENGINES},
-      ),
-    )
-  } else {
-    engine = parsedConfig.engine as TEngineTranslation
-    const engineConfig = parsedConfig[engine]
-    if (engineConfig !== undefined && !isObject(engineConfig)) {
-      diagnostics.push(
-        diagnostic(
-          'CONFIG_ENGINE_OPTIONS_INVALID',
-          'error',
-          `Configuration field "${engine}" must be an object when provided.`,
-          configFile,
-          {engine},
-        ),
-      )
-    }
-  }
+  await diagnoseEngine({
+    checkEngine: options.checkEngine,
+    config: parsedConfig,
+    configFile,
+    diagnostics,
+    timeoutMs,
+  })
 
   const allShapes = new Map<string, IDictionaryShape[]>()
   if (basePath && languages) {
@@ -535,10 +599,6 @@ export async function runDoctor(options: IDoctorOptions = {}): Promise<IDoctorRe
         ),
       )
     }
-  }
-
-  if (options.checkEngine && engine) {
-    await checkEngineAvailability(engine, timeoutMs, diagnostics)
   }
 
   return finishReport(diagnostics)

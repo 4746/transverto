@@ -8,14 +8,14 @@ import {
   buildConfig,
   IConfigBuilderInput,
   parseLanguages,
-  TRANSLATION_ENGINES,
   validateConfigInput,
   validateLanguageCodes,
   validateProjectPath,
 } from '../shared/config-builder.js'
 import {CONFIG_DEFAULT, LANG_CODE_DEFAULT} from '../shared/config.js'
 import {CTV_CONFIG_FILE_NAME} from '../shared/constants.js'
-import {TEngineTranslation} from '../shared/entities/translation.engine.js'
+import {ENGINE_PROVIDER_DEFAULTS, ENGINE_PROVIDERS} from '../shared/engine-profile.js'
+import {IEngineProfile, TEngineProvider} from '../shared/entities/translation.engine.js'
 import {Helper} from '../shared/helper.js'
 import {LabelBaseCommand} from '../shared/label-base.command.js'
 
@@ -25,14 +25,44 @@ interface IInitOptions extends IConfigBuilderInput {
 }
 
 interface IInitFlags {
+  'api-key-env'?: string
+  'base-url'?: string
   engine?: string
   force: boolean
   languages?: string
   minimal: boolean
+  model?: string
   'no-files': boolean
+  provider?: string
   source?: string
   'translations-path'?: string
   'types-path'?: string
+}
+
+interface IEngineFlagValues {
+  apiKeyEnv?: string
+  baseUrl?: string
+  engine?: string
+  model?: string
+  provider?: TEngineProvider
+}
+
+const hasEngineFlags = (values: IEngineFlagValues): boolean =>
+  Object.values(values).some(value => value !== undefined)
+
+const makeEngineProfile = (values: IEngineFlagValues): IEngineProfile | undefined => {
+  if (!hasEngineFlags(values)) return
+
+  if (!values.engine || !values.provider || !values.model) {
+    throw new Error('Engine setup requires --engine, --provider, and --model.')
+  }
+
+  return {
+    ...(values.apiKeyEnv ? {apiKeyEnv: values.apiKeyEnv} : {}),
+    ...(values.baseUrl ? {baseUrl: values.baseUrl} : {}),
+    model: values.model,
+    provider: values.provider,
+  }
 }
 
 export default class Init extends LabelBaseCommand<typeof Init> {
@@ -41,15 +71,20 @@ export default class Init extends LabelBaseCommand<typeof Init> {
   static examples = [
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --minimal',
-    '<%= config.bin %> <%= command.id %> --languages en,uk,de --source en --engine bing',
+    '<%= config.bin %> <%= command.id %> --languages en,uk,de --source en',
+    '<%= config.bin %> <%= command.id %> --minimal --engine lmstudio --provider lmstudio --model local-model',
     '<%= config.bin %> <%= command.id %> --minimal --no-files',
     '<%= config.bin %> <%= command.id %> --force',
   ]
 
   static flags = {
+    'api-key-env': Flags.string({
+      description: 'environment variable containing the API key',
+      helpValue: 'NAME',
+    }),
+    'base-url': Flags.string({description: 'OpenAI-compatible API base URL', helpValue: 'url'}),
     engine: Flags.string({
-      description: 'translation engine',
-      options: TRANSLATION_ENGINES,
+      description: 'named engine profile',
     }),
     force: Flags.boolean({
       char: 'f',
@@ -62,8 +97,13 @@ export default class Init extends LabelBaseCommand<typeof Init> {
     minimal: Flags.boolean({
       description: 'create a minimal project without interactive questions',
     }),
+    model: Flags.string({description: 'model identifier'}),
     'no-files': Flags.boolean({
       description: 'do not create language files or project directories',
+    }),
+    provider: Flags.string({
+      description: 'AI model provider',
+      options: ENGINE_PROVIDERS,
     }),
     source: Flags.string({
       description: 'source language code',
@@ -90,7 +130,7 @@ export default class Init extends LabelBaseCommand<typeof Init> {
     }
 
     const validated = validateConfigInput(options)
-    const config = buildConfig(validated)
+    const config = buildConfig(options)
     const configPath = path.join(process.cwd(), CTV_CONFIG_FILE_NAME)
 
     this.preflight(configPath, validated, options)
@@ -169,6 +209,13 @@ export default class Init extends LabelBaseCommand<typeof Init> {
     let languages = flags.languages ? parseLanguages(flags.languages) : [LANG_CODE_DEFAULT]
     let {source} = flags
     let {engine} = flags
+    let {
+      'api-key-env': apiKeyEnv,
+      'base-url': baseUrl,
+      model,
+      provider: rawProvider,
+    } = flags
+    let provider = rawProvider as TEngineProvider | undefined
     let translationsPath = flags['translations-path']
     let typesPath = flags['types-path']
     let createFiles = !flags['no-files']
@@ -198,11 +245,44 @@ export default class Init extends LabelBaseCommand<typeof Init> {
         message: 'Source language:',
       })
 
-      engine ??= await select<TEngineTranslation>({
-        choices: TRANSLATION_ENGINES.map(value => ({name: value, value})),
-        default: TRANSLATION_ENGINES[0],
-        message: 'Translation engine:',
+      const configureEngine = hasEngineFlags({apiKeyEnv, baseUrl, engine, model, provider}) || await confirm({
+        default: false,
+        message: 'Configure an AI translation profile?',
       })
+
+      if (configureEngine) {
+        provider ??= await select<TEngineProvider>({
+          choices: ENGINE_PROVIDERS.map(value => ({name: value, value})),
+          default: 'lmstudio',
+          message: 'AI provider:',
+        })
+
+        engine ??= await input({
+          default: provider,
+          message: 'Engine profile name:',
+        })
+
+        model ??= await input({
+          message: 'Model identifier:',
+          validate: value => value.trim().length > 0 || 'Model identifier is required.',
+        })
+
+        if (!baseUrl) {
+          const defaultBaseUrl = ENGINE_PROVIDER_DEFAULTS[provider].baseUrl ?? ''
+          const enteredBaseUrl = await input({
+            default: defaultBaseUrl,
+            message: 'API base URL:',
+          })
+          baseUrl = enteredBaseUrl || undefined
+        }
+
+        if (ENGINE_PROVIDER_DEFAULTS[provider].requiresApiKey && !apiKeyEnv) {
+          apiKeyEnv = await input({
+            default: provider === 'google-ai' ? 'GEMINI_API_KEY' : 'OPENROUTER_API_KEY',
+            message: 'API key environment variable:',
+          })
+        }
+      }
 
       translationsPath ??= await input({
         default: CONFIG_DEFAULT.basePath,
@@ -238,9 +318,12 @@ export default class Init extends LabelBaseCommand<typeof Init> {
       }
     }
 
+    const engineProfile = makeEngineProfile({apiKeyEnv, baseUrl, engine, model, provider})
+
     return {
       createFiles,
-      engine,
+      engine: engine ?? null,
+      ...(engineProfile ? {engineProfile} : {}),
       force: flags.force,
       languages,
       source,
@@ -248,4 +331,5 @@ export default class Init extends LabelBaseCommand<typeof Init> {
       typesPath,
     }
   }
+
 }
