@@ -14,6 +14,7 @@ Label management command.
 * [bash/zsh](#bashzsh)
 * [Translation workflow](#translation-workflow)
 * [Safe synchronization](#safe-synchronization)
+* [Bulk key operations](#bulk-key-operations)
 * [Translation status](#translation-status)
 * [Translation cache](#translation-cache)
 * [Commands](#commands)
@@ -256,6 +257,31 @@ Human and JSON reports contain per-language counts for `added`, `removed`,
 or remaining work, and exit 2 means invalid usage/configuration/input or a
 write-safety failure.
 
+# Bulk key operations
+
+`ctv label:rename <old> <new>` renames one exact leaf, while
+`ctv label:move <old-prefix> <new-prefix>` moves the exact branch and its
+descendants. A move of `home` never affects a similar key such as `homepage`.
+`ctv label:delete <pattern>` accepts an exact key or branch, `*`, a leading
+wildcard such as `*.deprecated`, or a trailing wildcard such as `admin.*`.
+
+```shell
+ctv label:rename home.title home.heading --dry-run --json
+ctv label:move account.profile user.profile --language uk --write
+ctv label:delete '*.deprecated' --force
+```
+
+Repeat `--language`, `--include`, and `--exclude` to limit an operation.
+Filters apply to source keys before a rename, move, or delete. Every command
+builds its complete in-memory plan first; `--dry-run` returns that plan without
+writing. Non-interactive writes require `--write` (or `--force` for delete).
+
+An existing target or structural path collision in any selected language blocks
+the entire rename or move. `--overwrite` explicitly permits replacing those
+target values or branches. JSON output always includes `changes`, `conflicts`,
+and the complete sorted `matchedKeys` list. Successful writes update all changed
+dictionaries and the generated TypeScript types in one rollback-capable file
+transaction; the types file is generated once.
 # Translation status
 
 `ctv status` compares configured target dictionaries with the source language
@@ -329,8 +355,10 @@ cache file produces an error and is never silently replaced.
 * [`ctv init`](#ctv-init)
 * [`ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-replace-sync)
 * [`ctv label:add [LABEL]`](#ctv-labeladd-label)
-* [`ctv label:delete LABEL`](#ctv-labeldelete-label)
+* [`ctv label:delete PATTERN`](#ctv-labeldelete-pattern)
 * [`ctv label:get [LABEL]`](#ctv-labelget-label)
+* [`ctv label:move OLD-PREFIX NEW-PREFIX`](#ctv-labelmove-old-prefix-new-prefix)
+* [`ctv label:rename OLD NEW`](#ctv-labelrename-old-new)
 * [`ctv label:replace LABEL`](#ctv-labelreplace-label)
 * [`ctv label:sync`](#ctv-labelsync)
 * [`ctv language:add CODE`](#ctv-languageadd-code)
@@ -600,27 +628,38 @@ EXAMPLES
 
 _See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/add.ts)_
 
-## `ctv label:delete LABEL`
+## `ctv label:delete PATTERN`
 
-Delete the specified label.
+Safely delete translation keys across configured languages
 
 ```
 USAGE
-  $ ctv label:delete LABEL [-r]
+  $ ctv label:delete PATTERN [--json] [--dry-run] [--exclude <value>...] [--include <value>...] [--language
+    <value>...] [--write] [-f]
 
 ARGUMENTS
-  LABEL  A label key
+  PATTERN  exact key, branch prefix, or edge-wildcard key pattern
 
 FLAGS
-  -r, --noReport
+  -f, --force                apply without interactive confirmation
+      --dry-run              show the immutable plan without writing files
+      --exclude=<value>...   exclude exact or edge-wildcard source key pattern
+      --include=<value>...   include exact or edge-wildcard source key pattern
+      --language=<value>...  language code to mutate
+      --write                apply the plan without interactive confirmation
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
-  Delete the specified label.
+  Safely delete translation keys across configured languages
 
 EXAMPLES
-  $ ctv label:delete hello
+  $ ctv label:delete home.legacy --dry-run
 
-  $ ctv label:delete hello.world
+  $ ctv label:delete "*.deprecated" --language en --language uk --dry-run --json
+
+  $ ctv label:delete "admin.*" --force
 ```
 
 _See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/delete.ts)_
@@ -656,6 +695,80 @@ EXAMPLES
 ```
 
 _See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/get.ts)_
+
+## `ctv label:move OLD-PREFIX NEW-PREFIX`
+
+Atomically move a translation-key branch across configured languages
+
+```
+USAGE
+  $ ctv label:move OLD-PREFIX NEW-PREFIX [--json] [--dry-run] [--exclude <value>...] [--include <value>...]
+    [--language <value>...] [--write] [--overwrite]
+
+ARGUMENTS
+  OLD-PREFIX  existing exact branch prefix
+  NEW-PREFIX  new exact branch prefix
+
+FLAGS
+  --dry-run              show the immutable plan without writing files
+  --exclude=<value>...   exclude exact or edge-wildcard source key pattern
+  --include=<value>...   include exact or edge-wildcard source key pattern
+  --language=<value>...  language code to mutate
+  --overwrite            replace existing target values or branches
+  --write                apply the plan without interactive confirmation
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Atomically move a translation-key branch across configured languages
+
+EXAMPLES
+  $ ctv label:move account.profile user.profile --dry-run
+
+  $ ctv label:move account user --include "account.*" --write
+
+  $ ctv label:move old.section new.section --overwrite --write --json
+```
+
+_See code: [src/commands/label/move.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/move.ts)_
+
+## `ctv label:rename OLD NEW`
+
+Atomically rename a translation key across configured languages
+
+```
+USAGE
+  $ ctv label:rename OLD NEW [--json] [--dry-run] [--exclude <value>...] [--include <value>...] [--language
+    <value>...] [--write] [--overwrite]
+
+ARGUMENTS
+  OLD  existing exact translation key
+  NEW  new exact translation key
+
+FLAGS
+  --dry-run              show the immutable plan without writing files
+  --exclude=<value>...   exclude exact or edge-wildcard source key pattern
+  --include=<value>...   include exact or edge-wildcard source key pattern
+  --language=<value>...  language code to mutate
+  --overwrite            replace existing target values
+  --write                apply the plan without interactive confirmation
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Atomically rename a translation key across configured languages
+
+EXAMPLES
+  $ ctv label:rename home.title home.heading --dry-run
+
+  $ ctv label:rename home.title home.heading --language uk --write
+
+  $ ctv label:rename old.key new.key --overwrite --write --json
+```
+
+_See code: [src/commands/label/rename.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/rename.ts)_
 
 ## `ctv label:replace LABEL`
 
