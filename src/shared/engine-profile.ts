@@ -12,6 +12,8 @@ export const ENGINE_PROVIDERS: TEngineProvider[] = [
   'openai-compatible',
 ]
 
+export const ENGINE_TIMEOUT_DEFAULT_MS = 30_000
+
 export const ENGINE_PROVIDER_DEFAULTS: Record<
   TEngineProvider,
   {baseUrl: null | string; requiresApiKey: boolean}
@@ -46,6 +48,15 @@ const validateBaseUrl = (value: string, profileName: string): string => {
   return value.replace(/\/+$/, '')
 }
 
+const validateTimeout = (value: unknown, profileName: string): number | undefined => {
+  if (value === undefined) return
+  if (!Number.isSafeInteger(value) || (value as number) < 1) {
+    throw new Error(`Engine profile "${profileName}" timeoutMs must be a positive integer.`)
+  }
+
+  return value as number
+}
+
 const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
   if (!PROFILE_NAME_PATTERN.test(name)) {
     throw new Error(`Engine profile name "${name}" is invalid.`)
@@ -55,7 +66,8 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     throw new Error(`Engine profile "${name}" must be an object.`)
   }
 
-  const {apiKeyEnv, baseUrl, model, provider} = rawProfile
+  const {apiKeyEnv, baseUrl, model, provider, timeoutMs} = rawProfile
+  const validatedTimeout = validateTimeout(timeoutMs, name)
   if (!ENGINE_PROVIDERS.includes(provider as TEngineProvider)) {
     throw new Error(`Engine profile "${name}" has an unsupported provider.`)
   }
@@ -89,7 +101,33 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     ...(typeof baseUrl === 'string' ? {baseUrl: validateBaseUrl(baseUrl, name)} : {}),
     model: model.trim(),
     provider: provider as TEngineProvider,
+    ...(validatedTimeout === undefined ? {} : {timeoutMs: validatedTimeout}),
   }
+}
+
+export function validateFallbackConfiguration(
+  fallback: unknown,
+  engines: Record<string, IEngineProfile>,
+  primary?: null | string,
+): null | string {
+  if (fallback === undefined || fallback === null) return null
+  if (typeof fallback !== 'string' || fallback.length === 0) {
+    throw new Error('Configuration field "fallback" must be a profile name or null.')
+  }
+
+  if (!(fallback in engines)) {
+    throw new Error(`Fallback engine profile "${fallback}" is not configured.`)
+  }
+
+  if (fallback === primary) {
+    throw new Error('Fallback engine profile must differ from the primary profile.')
+  }
+
+  return fallback
+}
+
+export interface IResolveEngineProfileOptions {
+  requireCredentials?: boolean
 }
 
 export function validateEngineConfiguration(
@@ -120,6 +158,7 @@ export function resolveEngineProfile(
   config: Pick<IConfig, 'engine' | 'engines'>,
   selectedEngine?: string,
   environment: NodeJS.ProcessEnv = process.env,
+  options: IResolveEngineProfileOptions = {},
 ): IResolvedEngineProfile {
   const engines = validateEngineConfiguration(config.engine, config.engines)
   const name = selectedEngine ?? config.engine
@@ -131,7 +170,7 @@ export function resolveEngineProfile(
   const defaults = ENGINE_PROVIDER_DEFAULTS[profile.provider]
   const baseUrl = validateBaseUrl(profile.baseUrl ?? defaults.baseUrl, name)
   const apiKey = profile.apiKeyEnv ? environment[profile.apiKeyEnv] : undefined
-  if (profile.apiKeyEnv && !apiKey) {
+  if ((options.requireCredentials ?? true) && profile.apiKeyEnv && !apiKey) {
     throw new Error(
       `Engine profile "${name}" requires environment variable ${profile.apiKeyEnv}.`,
     )
@@ -142,5 +181,6 @@ export function resolveEngineProfile(
     ...(apiKey ? {apiKey} : {}),
     baseUrl,
     name,
+    timeoutMs: profile.timeoutMs ?? ENGINE_TIMEOUT_DEFAULT_MS,
   }
 }

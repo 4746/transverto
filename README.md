@@ -39,11 +39,13 @@ provider can coexist.
 ```json
 {
   "engine": "lmstudio",
+  "fallback": "openrouter",
   "engines": {
     "lmstudio": {
       "provider": "lmstudio",
       "baseUrl": "http://localhost:1234/v1",
-      "model": "google/gemma-4-12b-qat"
+      "model": "google/gemma-4-12b-qat",
+      "timeoutMs": 30000
     },
     "google-ai": {
       "provider": "google-ai",
@@ -58,6 +60,10 @@ provider can coexist.
   }
 }
 ```
+
+`fallback` accepts one configured profile name or `null`. It must differ from
+the active primary profile; fallback chains and load balancing are not supported.
+Each profile can set a positive `timeoutMs`; the default is `30000`.
 
 Supported providers:
 
@@ -93,6 +99,8 @@ Translate positional text or stdin, or select one or more dictionary keys:
 ctv translate "Hello" --from en --to uk
 echo "Hello" | ctv translate --stdin --to uk --to de
 ctv translate --key home.title --key home.subtitle --to uk
+ctv translate "Hello" --to uk --fallback openrouter
+ctv translate "Hello" --to uk --no-fallback
 ```
 
 `--key` is preview-only unless `--write` is supplied. All translations finish
@@ -111,8 +119,16 @@ JSON output always uses this envelope:
 }
 ```
 
-Every item in `results` includes `cached: true` for a cache hit and `cached: false`
-for a network translation.
+Every item in `results` includes `cached`, `engine`, `provider`, and `model` for
+the profile that actually supplied the translation. When the fallback supplies
+the result, the item also includes `"fallback": {"from": "<primary>"}`.
+
+Before any network request, the service checks the primary cache and then the
+fallback cache. If both miss, the fallback profile is called only when the
+primary fails with `rate_limit`, `timeout`, `network`, or
+`provider_unavailable`. Errors categorized as `configuration`, `authentication`,
+`validation`, or `provider_response` never trigger fallback. `--fallback <name>`
+overrides the configured profile for one run; `--no-fallback` disables it.
 
 # Translation cache
 
@@ -631,20 +647,22 @@ Translate text or configured translation keys with an AI model
 
 ```
 USAGE
-  $ ctv translate [TEXT] --to <value>... [--json] [--dry-run] [--engine <value>] [--from <value>] [--key
-    <value>...] [--stdin] [--write]
+  $ ctv translate [TEXT] --to <value>... [--json] [--dry-run] [--engine <value>] [--fallback <value> |
+    --no-fallback] [--from <value>] [--key <value>...] [--stdin] [--write]
 
 ARGUMENTS
   [TEXT]  text to translate
 
 FLAGS
-  --dry-run         validate and show requests without network calls or writes
-  --engine=<value>  named engine profile
-  --from=<value>    source language code
-  --key=<value>...  translation key
-  --stdin           read source text from stdin
-  --to=<value>...   (required) target language code
-  --write           write key translations to target dictionaries
+  --dry-run           validate and show requests without network calls or writes
+  --engine=<value>    named engine profile
+  --fallback=<value>  single fallback engine profile for this run
+  --from=<value>      source language code
+  --key=<value>...    translation key
+  --no-fallback       disable the configured fallback for this run
+  --stdin             read source text from stdin
+  --to=<value>...     (required) target language code
+  --write             write key translations to target dictionaries
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -662,6 +680,10 @@ EXAMPLES
   $ ctv translate --key home.title --to uk --write
 
   $ ctv translate --key home.title --to uk --dry-run --json
+
+  $ ctv translate "Hello" --to uk --fallback openrouter
+
+  $ ctv translate "Hello" --to uk --no-fallback
 ```
 
 _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/translate.ts)_
@@ -679,11 +701,13 @@ _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v
     "ttlMs": 2592000000
   },
   "engine": "lmstudio",
+  "fallback": null,
   "engines": {
     "lmstudio": {
       "provider": "lmstudio",
       "baseUrl": "http://localhost:1234/v1",
-      "model": "google/gemma-4-12b-qat"
+      "model": "google/gemma-4-12b-qat",
+      "timeoutMs": 30000
     }
   },
   "labelValidation": "^[a-z0-9\\.\\-\\_]{3,100}$",

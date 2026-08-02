@@ -126,6 +126,7 @@ export function buildConfig(input: IConfigBuilderInput): IConfig {
     cache: {...CONFIG_DEFAULT.cache},
     engine: validated.engine,
     engines: validated.engines,
+    fallback: CONFIG_DEFAULT.fallback,
     labelValidation: CONFIG_DEFAULT.labelValidation,
     langCodeDefault: validated.source,
     languages: [...validated.languages],

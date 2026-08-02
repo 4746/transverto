@@ -12,12 +12,14 @@ export interface IEngineProfile {
   baseUrl?: string
   model: string
   provider: TEngineProvider
+  timeoutMs?: number
 }
 
 export interface IResolvedEngineProfile extends IEngineProfile {
   apiKey?: string
   baseUrl: string
   name: string
+  timeoutMs: number
 }
 
 export interface ITranslationRequestPlan {
@@ -30,7 +32,9 @@ export interface ITranslationRequestPlan {
 export interface ITranslationResult extends ITranslationRequestPlan {
   cached: boolean
   engine: string
+  fallback?: {from: string}
   model: string
+  provider: TEngineProvider
   translatedText: string
 }
 

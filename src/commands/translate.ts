@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import {validateLanguageCodes} from '../shared/config-builder.js'
 import {CTV_TRANSLATION_CACHE_FILE} from '../shared/constants.js'
+import {TranslationError} from '../shared/entities/translation-error.js'
 import {
   ITranslateOutput,
   ITranslationRequestPlan,
@@ -36,6 +37,8 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
     '<%= config.bin %> <%= command.id %> --key home.title --to uk',
     '<%= config.bin %> <%= command.id %> --key home.title --to uk --write',
     '<%= config.bin %> <%= command.id %> --key home.title --to uk --dry-run --json',
+    '<%= config.bin %> <%= command.id %> "Hello" --to uk --fallback openrouter',
+    '<%= config.bin %> <%= command.id %> "Hello" --to uk --no-fallback',
   ]
 
   static flags = {
@@ -43,8 +46,13 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
       description: 'validate and show requests without network calls or writes',
     }),
     engine: Flags.string({description: 'named engine profile'}),
+    fallback: Flags.string({
+      description: 'single fallback engine profile for this run',
+      exclusive: ['no-fallback'],
+    }),
     from: Flags.string({description: 'source language code'}),
     key: Flags.string({description: 'translation key', multiple: true}),
+    'no-fallback': Flags.boolean({description: 'disable the configured fallback for this run'}),
     stdin: Flags.boolean({description: 'read source text from stdin'}),
     to: Flags.string({description: 'target language code', multiple: true, required: true}),
     write: Flags.boolean({description: 'write key translations to target dictionaries'}),
@@ -74,6 +82,9 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
         this.cliConfig,
         {
           cacheFile: path.join(this.config.cacheDir, CTV_TRANSLATION_CACHE_FILE),
+          ...(flags['no-fallback']
+            ? {fallback: null}
+            : flags.fallback === undefined ? {} : {fallback: flags.fallback}),
           selectedEngine: flags.engine,
         },
       )
@@ -95,7 +106,7 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
         return this.output(output)
       }
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error), {exit: 2})
+      this.error(this.errorMessage(error), {exit: 2})
     }
 
     try {
@@ -105,8 +116,18 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
       const written = flags.write ? await projectService.write(results) : []
       return this.output({dryRun: false, requests, results, written})
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error), {exit: 1})
+      this.error(this.errorMessage(error), {exit: 1})
     }
+  }
+
+  private engineSummary(result: ITranslateOutput['results'][number]): string {
+    const fallback = result.fallback ? `, fallback from ${result.fallback.from}` : ''
+    return `[${result.engine}/${result.provider}/${result.model}${fallback}${result.cached ? ', cached' : ''}]`
+  }
+
+  private errorMessage(error: unknown): string {
+    if (error instanceof TranslationError) return `[${error.category}] ${error.message}`
+    return error instanceof Error ? error.message : String(error)
   }
 
   private output(output: ITranslateOutput): ITranslateOutput | void {
@@ -121,10 +142,12 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
     }
 
     if (output.results.length === 1) {
-      this.log(output.results[0].translatedText)
+      const result = output.results[0]
+      this.log(result.translatedText)
+      this.log(this.engineSummary(result))
     } else {
       for (const result of output.results) {
-        this.log(`${result.key ? `${result.key} -> ` : ''}${result.to}: ${result.translatedText}`)
+        this.log(`${result.key ? `${result.key} -> ` : ''}${result.to}: ${result.translatedText} ${this.engineSummary(result)}`)
       }
     }
 

@@ -16,6 +16,7 @@ export interface IConfig {
   cache: ITranslationCacheConfig;
   engine: null | string;
   engines: Record<string, IEngineProfile>;
+  fallback?: null | string;
   /**
    * Regular expression pattern for validating labels.
    *
@@ -46,6 +47,7 @@ export const CONFIG_DEFAULT: IConfig = {
   },
   engine: null,
   engines: {},
+  fallback: null,
   /**
    * Regular expression pattern for validating labels.
    *

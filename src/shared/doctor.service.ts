@@ -6,6 +6,7 @@ import {CTV_CONFIG_FILE_NAME} from './constants.js'
 import {
   resolveEngineProfile,
   validateEngineConfiguration,
+  validateFallbackConfiguration,
 } from './engine-profile.js'
 import {
   IDiagnostic,
@@ -348,6 +349,20 @@ const diagnoseEngine = async ({
       ),
     )
     return
+  }
+
+  try {
+    validateFallbackConfiguration(config.fallback, engines, config.engine)
+  } catch (error) {
+    diagnostics.push(
+      diagnostic(
+        'CONFIG_FALLBACK_INVALID',
+        'error',
+        'Configuration field "fallback" is invalid.',
+        configFile,
+        {reason: error instanceof Error ? error.message : String(error)},
+      ),
+    )
   }
 
   let profile: IResolvedEngineProfile
