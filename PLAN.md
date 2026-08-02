@@ -50,7 +50,7 @@
 - Валідувати `languages`, `langCodeDefault`, `engine`, `basePath` і `basePathEnum`.
 - Перевіряти наявність мовних файлів та автоматично пропонувати створення відсутніх.
 - Виявляти пошкоджений JSON, дублікати шляхів ключів і конфлікти типів, наприклад коли `menu` одночасно є рядком і батьківським об'єктом.
-- Перевіряти доступність вибраного рушія перекладу та наявність обов'язкових параметрів.
+- Перевіряти доступність активного AI-профілю та наявність обов'язкових параметрів.
 - Повертати зрозумілий підсумок із рівнями `error`, `warning` та `info`.
 - Додати `--json` для машинного читання результату.
 
@@ -74,9 +74,9 @@
 
 ### 4. Покращення `ctv init`
 
-- Додати інтерактивний майстер вибору мов, мови за замовчуванням, рушія та шляхів.
+- Додати інтерактивний майстер вибору мов, мови за замовчуванням, AI-профілю та шляхів.
 - Додати `--minimal` для створення найпростішої конфігурації без інтерактивних питань.
-- Додати `--languages en,uk,de`, `--source en` і `--engine bing|google|terra` для скриптового запуску.
+- Додати `--languages en,uk,de`, `--source en` і повне налаштування AI-профілю через `--engine lmstudio --provider lmstudio --model google/gemma-4-12b-qat --base-url http://localhost:1234/v1` для скриптового запуску.
 - За підтвердженням створювати відсутні мовні JSON-файли та директорію для згенерованих типів.
 - Не записувати секрети до конфігурації: для API-ключів генерувати посилання на назви змінних середовища.
 
@@ -122,11 +122,11 @@
 
 ### 12. Уніфікована команда перекладу
 
-- Зробити публічну команду `ctv translate` замість прихованих команд конкретних рушіїв.
-- Дозволити тимчасово вибирати рушій через `--engine` без зміни конфігурації.
-- Підтримати переклад рядка, stdin, файлу та набору ключів.
+- Зробити публічну команду `ctv translate` замість прихованих команд конкретних providers.
+- Дозволити тимчасово вибирати іменований профіль через `--engine` без зміни конфігурації.
+- Підтримати переклад рядка, stdin та набору ключів.
 - Додати переклад одразу в кілька мов через повторюваний `--to`.
-- Надавати однаковий формат відповіді незалежно від рушія.
+- Надавати однаковий формат відповіді незалежно від профілю та provider.
 - Після перенесення можливостей видалити окремі engine-команди; aliases для v1.x не створювати.
 
 ### 13. Контроль автоперекладу
@@ -138,21 +138,21 @@
 - Перевіряти збереження плейсхолдерів у результаті; небезпечні результати позначати як конфлікт і не записувати автоматично.
 - Додати режим підтвердження перекладів перед записом.
 
-### 14. Резервні рушії та стійкість
+### 14. Резервний профіль та стійкість
 
-- Дозволити визначати ланцюжок рушіїв, наприклад `terra -> google -> bing`.
-- Перемикатися на наступний рушій лише для помилок мережі, лімітів або недоступності сервісу.
-- Не приховувати причину збою: показувати, який рушій виконав кожен переклад.
+- Дозволити визначати один резервний профіль, наприклад `"fallback": "google-ai"`; відсутнє значення або `null` вимикає fallback.
+- Перемикатися на резервний профіль лише для `rate_limit`, `timeout`, `network` і `provider_unavailable`.
+- Не приховувати причину збою: показувати профіль, provider і model, які фактично виконали переклад.
 - Додати таймаут запиту та зрозумілу класифікацію помилок.
 - Дозволити вимкнути fallback для середовищ, де важлива повна відтворюваність.
 
 ### 15. Розширене керування кешем
 
-- Розділяти кеш за рушієм, вихідною мовою, цільовою мовою та нормалізованим текстом.
+- Розділяти кеш за назвою профілю, model, вихідною мовою, цільовою мовою та нормалізованим текстом.
 - Додати `ctv cache:list`, `ctv cache:clear` і `ctv cache:prune`.
 - Додати TTL та максимальний розмір кешу в конфігурацію.
-- Показувати кількість записів, розподіл за рушіями та дату найстарішого запису.
-- Дозволити очистити кеш лише для вибраного рушія або мовної пари.
+- Показувати кількість записів, розподіл за профілями та дату найстарішого запису.
+- Дозволити очистити кеш лише для вибраного профілю або мовної пари.
 
 ## Завдання для окремих чатів
 
@@ -228,11 +228,11 @@
 
 **Залежності:** завдання 1–4.
 
-**Основні файли:** новий `src/commands/translate.ts`, `src/shared/entities/translation.engine.ts`, engine adapters/factory, старі `src/commands/translate/*.ts`, `README.md`.
+**Основні файли:** `src/commands/translate.ts`, `src/shared/entities/translation.engine.ts`, `src/shared/translation.service.ts`, `src/shared/translation-project.service.ts`, `src/shared/engine-profile.ts`, `src/shared/engines/openai-compatible.engine.ts`, config, старі `src/commands/translate/*.ts`, `README.md`.
 
-**Зробити:** один input із positional text/`--stdin`/`--file`/`--key`; repeatable `--to`, `--from`, `--engine`, `--dry-run`, `--write`, `--json`; уніфікувати engine interface та result `{sourceText, translatedText, from, to, engine, key?}`; перевіряти flags/languages до network; oversized file відхиляти; `--key` за замовчуванням лише preview; видалити старі provider commands без aliases.
+**Зробити:** один input із positional text/`--stdin`/`--key`; repeatable `--to`; flags `--from`, `--engine`, `--dry-run`, `--write`, `--json`; додати іменовані AI-профілі для providers `lmstudio`, `google-ai`, `openrouter`, `openai-compatible`; використовувати єдиний `OpenAICompatibleEngine` і result `{sourceText, translatedText, from, to, engine, model, key?}`; перевіряти flags/languages до network; `--key` за замовчуванням лише preview; видалити старі provider commands без aliases.
 
-**Критерії готовності:** усі engines мають одну result shape; multi-target зберігає порядок; preview не пише; README не містить старих commands.
+**Критерії готовності:** усі профілі мають одну result shape; multi-target зберігає порядок; preview не пише; README не містить старих commands.
 
 **Не робити:** retry, fallback, rate limits.
 
@@ -240,23 +240,23 @@
 
 **Залежності:** завдання 1, 5.
 
-**Основні файли:** `src/shared/engines/translate.engine.ts`, новий cache service/repository, cache entities/config, `src/commands/cache.ts` або topic commands, `README.md`.
+**Основні файли:** `src/shared/translation.service.ts`, новий cache service/repository, cache entities/config, `src/commands/cache.ts` або topic commands, `README.md`.
 
-**Зробити:** прибрати global cache state; key враховує engine/from/to/exact normalized text без `toLowerCase`; entry містить timestamps; додати `cache:list`, `cache:clear`, `cache:prune`, filters, TTL і maxEntries; corruption не стирати мовчки; старий `cache -c` видалити; prune виконує expired, потім LRU.
+**Зробити:** інтегрувати кеш у `TranslationService` і не повертати global cache state; key враховує profile name/model/from/to/exact normalized text без `toLowerCase`; API key, provider і baseUrl до key не входять; entry містить timestamps; кожен translation result містить `cached: boolean`; додати `cache:list`, `cache:clear`, `cache:prune`, filters, TTL і maxEntries; corruption не стирати мовчки; старий `cache -c` видалити; prune виконує expired, потім LRU.
 
-**Критерії готовності:** engines/language pairs не ділять entry; TTL/limit реально діють; filtered clear не зачіпає інші records; cache writes атомарні.
+**Критерії готовності:** profiles/models/language pairs не ділять entry; TTL/limit реально діють; filtered clear не зачіпає інші records; cache writes атомарні.
 
 **Не робити:** Redis, SQLite, network cache.
 
-### Завдання 7 — додати fallback engines
+### Завдання 7 — додати резервний профіль
 
 **Залежності:** завдання 1, 5–6.
 
-**Основні файли:** engine adapters/factory, translation error entities, config, `src/commands/translate.ts`, `README.md`.
+**Основні файли:** `src/shared/translation.service.ts`, `src/shared/engine-profile.ts`, `src/shared/engines/openai-compatible.engine.ts`, translation error entities, config, `src/commands/translate.ts`, `README.md`.
 
-**Зробити:** error categories `configuration`, `authentication`, `validation`, `rate_limit`, `timeout`, `network`, `provider_unavailable`, `provider_response`; ordered fallback config, repeatable `--fallback`, `--no-fallback`, timeout; fallback лише для recoverable categories; cache прив'язати до actual engine; JSON містить ordered attempts.
+**Зробити:** error categories `configuration`, `authentication`, `validation`, `rate_limit`, `timeout`, `network`, `provider_unavailable`, `provider_response`; config `fallback?: string | null` для одного резервного профілю; одиничні `--fallback <profile>` і `--no-fallback` тимчасово перевизначають config; fallback запускати лише для `rate_limit`, `timeout`, `network`, `provider_unavailable`; додати timeout; перед network-викликом окремо перевіряти кеш основного та резервного профілів; JSON-поля `engine`, `provider`, `model` описують профіль, який фактично виконав переклад, а `fallback: {from: string}` додається лише коли резервний профіль фактично використано.
 
-**Критерії готовності:** chain детермінований; authentication/validation/configuration не запускають fallback; timeout не зависає; actual engine видно в output/cache.
+**Критерії готовності:** дозволено не більше одного fallback; відсутнє значення або `null` вимикає fallback; authentication/validation/configuration/provider_response не запускають fallback; timeout не зависає; фактичні profile/provider/model видно в output, а cache entry належить профілю й моделі, що виконали переклад.
 
 **Не робити:** cost routing і load balancing.
 
@@ -266,7 +266,7 @@
 
 **Основні файли:** новий batch service та placeholder utility у `src/shared`, `src/commands/translate.ts`, config, `README.md`.
 
-**Зробити:** flags `--concurrency`, `--delay-ms`, `--max-items`, `--max-chars`, `--retry`, `--confirm`, `--dry-run`; стабільний input order; retry лише recoverable errors з bounded exponential backoff; пропускати empty/numbers/URLs/token-only; перевіряти `{{name}}`, `{count}`, `%s`, `%1$s`; mismatch не записувати; summary translated/cached/skipped/conflict/failed/remaining.
+**Зробити:** flags `--concurrency`, `--delay-ms`, `--max-items`, `--max-chars`, `--retry`, `--confirm`, `--dry-run`; застосовувати batch controls до будь-якого набору запитів із кількох `--key`, `--to` або їх комбінації, не додавати `--file` і не розбивати stdin на рядки; стабільний input order; retry лише recoverable errors з bounded exponential backoff; пропускати empty/numbers/URLs/token-only; перевіряти `{{name}}`, `{count}`, `%s`, `%1$s`; mismatch не записувати; `--confirm` у TTY після перекладу дозволяє `accept`/`skip` для кожного результату, працює лише разом із `--write`, а в non-TTY повертає usage error; summary translated/cached/skipped/conflict/failed/remaining використовує `cached` із translation result.
 
 **Критерії готовності:** dry-run не використовує network; limits не перевищуються при concurrency; retry не дублює success; placeholder conflicts не записуються.
 
@@ -288,9 +288,9 @@
 
 **Залежності:** завдання 1, 4, 8–9.
 
-**Основні файли:** `src/commands/label/sync.ts`, нові sync planner/executor/report components у `src/shared`, file repository, `README.md`.
+**Основні файли:** `src/commands/label/sync.ts`, нові task-specific sync planner/executor/report/repository components у `src/shared`, спільні JSON validation/key-path/file-transaction utilities, `README.md`.
 
-**Зробити:** `--dry-run`, `--source`, repeatable `--to`, `--include`, `--exclude`, `--extra keep|report|remove`, `--auto-translate`, `--write`; immutable plan add/remove/keep/translate/skip/conflict; source не залежить від порядку languages; missing без auto-translate отримує empty value; extra default report; до write перевіряти, що files не змінилися; атомарно записувати й один раз оновлювати enum.
+**Зробити:** `--dry-run`, `--source`, repeatable `--to`, `--include`, `--exclude`, `--extra keep|report|remove`, `--auto-translate`, `--engine`, `--fallback`, `--no-fallback`, `--write`; auto-translate повторно використовує `TranslationService`, cache, fallback і batch pipeline, а concurrency/delay/retry/limits бере зі спільної config; immutable plan add/remove/keep/translate/skip/conflict; source не залежить від порядку languages; missing без auto-translate отримує empty value; extra default report; до write перевіряти, що files не змінилися; атомарно записувати й один раз оновлювати enum.
 
 **Критерії готовності:** dry-run і write будують однаковий plan; необрані дані не змінюються; failure не залишає partial update; summary розбитий по мовах.
 
@@ -300,7 +300,7 @@
 
 **Залежності:** завдання 1, 4, 9–10.
 
-**Основні файли:** нові `src/commands/label/rename.ts`, `move.ts`; `delete.ts`; shared mutation planner/repository; `README.md`.
+**Основні файли:** нові `src/commands/label/rename.ts`, `move.ts`; `delete.ts`; task-specific mutation planner/repository у `src/shared`; спільні JSON validation/key-path/file-transaction utilities; `README.md`.
 
 **Зробити:** `label:rename <old> <new>`, `label:move <old-prefix> <new-prefix>`, glob-aware `label:delete`; shared `--language`, `--include`, `--exclude`, `--dry-run`, `--overwrite`/`--force`; existing target у будь-якій мові зупиняє всю операцію без overwrite; pattern delete показує full key list; changes готуються in-memory, атомарно пишуться, enum оновлюється один раз.
 
