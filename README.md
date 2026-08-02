@@ -120,22 +120,35 @@ _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/6.2.56
 
 ## `ctv init`
 
-Create a default configuration file
+Create a Transverto project configuration
 
 ```
 USAGE
-  $ ctv init [-f]
+  $ ctv init [--engine bing|google|terra] [-f] [--languages en,uk,de] [--minimal] [--no-files] [--source
+    lang] [--translations-path path] [--types-path path]
 
 FLAGS
-  -f, --force  overwrite an existing file
+  -f, --force                   overwrite existing configuration and language files
+      --engine=<option>         translation engine
+                                <options: bing|google|terra>
+      --languages=en,uk,de      comma-separated language codes
+      --minimal                 create a minimal project without interactive questions
+      --no-files                do not create language files or project directories
+      --source=lang             source language code
+      --translations-path=path  directory for language JSON files
+      --types-path=path         path for generated TypeScript types
 
 DESCRIPTION
-  Create a default configuration file
+  Create a Transverto project configuration
 
 EXAMPLES
   $ ctv init
 
-  $ ctv init --help
+  $ ctv init --minimal
+
+  $ ctv init --languages en,uk,de --source en --engine bing
+
+  $ ctv init --minimal --no-files
 
   $ ctv init --force
 ```
