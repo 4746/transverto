@@ -13,6 +13,7 @@ Label management command.
 * [PowerShell](#powershell)
 * [bash/zsh](#bashzsh)
 * [Translation workflow](#translation-workflow)
+* [Translation status](#translation-status)
 * [Translation cache](#translation-cache)
 * [Commands](#commands)
 <!-- tocstop -->
@@ -199,6 +200,44 @@ recoverable categories listed above. `configuration`, `authentication`,
 `validation`, and `provider_response` never trigger fallback. `--fallback <name>`
 overrides the configured profile for one run; `--no-fallback` disables it.
 
+# Translation status
+
+`ctv status` compares configured target dictionaries with the source language
+from `langCodeDefault`. Without `--language`, it analyzes every configured target
+in configuration order. Repeat `--language` to select targets and `--problem` to
+select one or more finding types:
+
+- `missing` (`error`): a source key is absent from the target;
+- `extra` (`info`): a target key is absent from the source;
+- `empty` (`warning`): a target value is empty or whitespace-only;
+- `same` (`info`): a non-empty target value exactly equals the source;
+- `placeholder` (`error`): `{{name}}`, `{count}`, `%s`, or `%1$s` occurrences do
+  not match the source exactly.
+
+```shell
+ctv status
+ctv status --language uk --problem missing --problem placeholder
+ctv status --include 'home.*' --exclude '*.title'
+ctv status --json --fail-on warning
+ctv status --fail-on never
+```
+
+`--include` and `--exclude` are repeatable and accept an exact key, one leading
+wildcard (`*.title`), one trailing wildcard (`home.*`), or `*`. A wildcard in the
+middle, such as `home.*.title`, is invalid. Values within one filter group are
+ORed; language, problem, include, and exclude groups are ANDed. Filters apply to
+structured findings before output, so `summary.total` and all summary counters
+always describe exactly the emitted findings.
+
+`--json` emits a stable ANSI-free object with `source`, selected `languages`,
+`findings`, `summary`, `failOn`, and `exitCode`. By default, `--fail-on error`
+exits 1 for filtered errors. `--fail-on warning` exits 1 for warnings or errors,
+while `--fail-on never` leaves valid reports at exit 0. Invalid flags,
+configuration, or dictionaries exit 2 regardless of the threshold.
+
+Status analysis is strictly read-only: it does not write dictionaries, generate
+types, resolve or call translation engines, or make network requests.
+
 # Translation cache
 
 Successful AI translations are cached in the CLI cache directory. Cache keys
@@ -242,6 +281,7 @@ cache file produces an error and is never silently replaced.
 * [`ctv language:list`](#ctv-languagelist)
 * [`ctv language:remove CODE`](#ctv-languageremove-code)
 * [`ctv language:rename FROM TO`](#ctv-languagerename-from-to)
+* [`ctv status`](#ctv-status)
 * [`ctv translate [TEXT]`](#ctv-translate-text)
 
 ## `ctv cache:clear`
@@ -709,6 +749,42 @@ EXAMPLES
 ```
 
 _See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/language/rename.ts)_
+
+## `ctv status`
+
+Check target dictionaries for translation problems
+
+```
+USAGE
+  $ ctv status [--exclude <value>...] [--fail-on error|warning|never] [--include <value>...] [--json]
+    [--language <value>...] [--problem missing|extra|empty|same|placeholder...]
+
+FLAGS
+  --exclude=<value>...   exclude exact or edge-wildcard key pattern
+  --fail-on=<option>     [default: error] exit 1 when filtered findings reach this severity
+                         <options: error|warning|never>
+  --include=<value>...   include exact or edge-wildcard key pattern
+  --json                 output a stable JSON status report
+  --language=<value>...  target language code
+  --problem=<option>...  problem type
+                         <options: missing|extra|empty|same|placeholder>
+
+DESCRIPTION
+  Check target dictionaries for translation problems
+
+EXAMPLES
+  $ ctv status
+
+  $ ctv status --json
+
+  $ ctv status --language uk --problem missing --problem placeholder
+
+  $ ctv status --include "home.*" --exclude "*.title"
+
+  $ ctv status --fail-on warning
+```
+
+_See code: [src/commands/status.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/status.ts)_
 
 ## `ctv translate [TEXT]`
 

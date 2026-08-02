@@ -114,16 +114,16 @@ Findings use these rules and default severities:
 Placeholder comparison recognizes `{{name}}`, `{count}`, `%s`, and `%1$s` using
 the Task 8 utility. Placeholder order may differ, but spelling and occurrence
 count must match. An empty or whitespace-only value may therefore produce both
-`empty` and `placeholder` when the source contains placeholders. A value may
-also produce both `same` and another applicable finding; findings are
-independent facts rather than mutually exclusive statuses.
+`empty` and `placeholder` when the source contains placeholders. Other finding
+types are independent facts, but an exact non-empty `same` value necessarily has
+matching placeholders and cannot also be `empty` or `placeholder`.
 
 Missing and extra values do not additionally produce empty, same, or
 placeholder findings. Source values are not themselves reported as empty; the
 command evaluates target translation state relative to the source.
 
-Findings are ordered by selected language order, then key using Unicode string
-comparison, then problem order: `missing`, `extra`, `empty`, `same`,
+Findings are ordered by selected language order, then key using locale-independent
+Unicode code-unit comparison, then problem order: `missing`, `extra`, `empty`, `same`,
 `placeholder`. Filtering preserves that order.
 
 ## Report and Human Output
