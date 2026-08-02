@@ -22,6 +22,8 @@ export type TSyncActionReason =
 
 export type TSyncExtraPolicy = 'keep' | 'remove' | 'report'
 
+export const SYNC_EXTRA_POLICIES = ['keep', 'report', 'remove'] as const
+
 export interface ISyncAction {
   readonly key: string
   readonly language: string
