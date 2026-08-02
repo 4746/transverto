@@ -8,18 +8,27 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: node
-        uses: actions/setup-node@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: 24
           registry-url: https://registry.npmjs.org
+
+      - name: Show versions
+        run: |
+          node --version
+          npm --version
+
       - name: Install dependencies
         run: npm install
+
       - name: Build package
         run: npm run prepack
-      - name: publish
+
+      - name: Publish
         run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN_V107}}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_V107 }}
