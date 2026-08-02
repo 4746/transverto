@@ -27,6 +27,7 @@ ctv --help
 # Commands
 <!-- commands -->
 * [`ctv cache`](#ctv-cache)
+* [`ctv doctor`](#ctv-doctor)
 * [`ctv export:csv [LANGCODE]`](#ctv-exportcsv-langcode)
 * [`ctv help [COMMAND]`](#ctv-help-command)
 * [`ctv init`](#ctv-init)
@@ -59,6 +60,32 @@ EXAMPLES
 ```
 
 _See code: [src/commands/cache.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/cache.ts)_
+
+## `ctv doctor`
+
+Diagnose Transverto configuration and language files
+
+```
+USAGE
+  $ ctv doctor [--check-engine] [--json] [--timeout <value>]
+
+FLAGS
+  --check-engine     perform an opt-in network availability check for the configured engine
+  --json             output a stable JSON diagnostic report
+  --timeout=<value>  [default: 3000] engine check timeout in milliseconds
+
+DESCRIPTION
+  Diagnose Transverto configuration and language files
+
+EXAMPLES
+  $ ctv doctor
+
+  $ ctv doctor --json
+
+  $ ctv doctor --check-engine --timeout 5000
+```
+
+_See code: [src/commands/doctor.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/doctor.ts)_
 
 ## `ctv export:csv [LANGCODE]`
 
