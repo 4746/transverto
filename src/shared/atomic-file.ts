@@ -8,6 +8,22 @@ export interface IFileMutation {
   file: string
 }
 
+export interface IFilePrecondition {
+  expected: Buffer | null
+  file: string
+}
+
+export interface IFileTransactionOptions {
+  preconditions?: IFilePrecondition[]
+}
+
+const readFileState = async (file: string): Promise<Buffer | null> => {
+  const stat = fs.statSync(file, {throwIfNoEntry: false})
+  if (!stat) return null
+  if (!stat.isFile()) throw new Error(`Transaction target is not a file: ${file}`)
+  return fs.promises.readFile(file)
+}
+
 const writeFileAtomic = async (file: string, content: Buffer | string): Promise<void> => {
   const directory = path.dirname(file)
   const temporaryFile = path.join(directory, `.${path.basename(file)}.${randomUUID()}.tmp`)
@@ -22,7 +38,10 @@ const writeFileAtomic = async (file: string, content: Buffer | string): Promise<
   }
 }
 
-export async function applyFileTransaction(mutations: IFileMutation[]): Promise<void> {
+export async function applyFileTransaction(
+  mutations: IFileMutation[],
+  options: IFileTransactionOptions = {},
+): Promise<void> {
   const targets = mutations.map(({file}) => path.resolve(file))
   if (new Set(targets).size !== targets.length) {
     throw new Error('A file transaction cannot mutate the same path more than once.')
@@ -30,9 +49,22 @@ export async function applyFileTransaction(mutations: IFileMutation[]): Promise<
 
   const snapshots = new Map<string, Buffer | null>()
   for (const file of targets) {
-    const stat = fs.statSync(file, {throwIfNoEntry: false})
-    if (stat && !stat.isFile()) throw new Error(`Transaction target is not a file: ${file}`)
-    snapshots.set(file, stat ? await fs.promises.readFile(file) : null)
+    snapshots.set(file, await readFileState(file))
+  }
+
+  const preconditions = options.preconditions ?? []
+  const preconditionTargets = preconditions.map(({file}) => path.resolve(file))
+  if (new Set(preconditionTargets).size !== preconditionTargets.length) {
+    throw new Error('A file transaction cannot check the same precondition path more than once.')
+  }
+
+  for (const [index, precondition] of preconditions.entries()) {
+    const file = preconditionTargets[index]
+    const current = snapshots.has(file) ? snapshots.get(file) ?? null : await readFileState(file)
+    const matches = precondition.expected === null
+      ? current === null
+      : current !== null && current.equals(precondition.expected)
+    if (!matches) throw new Error(`File changed after sync planning: ${file}`)
   }
 
   const applied: string[] = []
