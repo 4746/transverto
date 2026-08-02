@@ -37,6 +37,10 @@ ctv --help
 * [`ctv label:get [LABEL]`](#ctv-labelget-label)
 * [`ctv label:replace LABEL`](#ctv-labelreplace-label)
 * [`ctv label:sync`](#ctv-labelsync)
+* [`ctv language:add CODE`](#ctv-languageadd-code)
+* [`ctv language:list`](#ctv-languagelist)
+* [`ctv language:remove CODE`](#ctv-languageremove-code)
+* [`ctv language:rename FROM TO`](#ctv-languagerename-from-to)
 
 ## `ctv cache`
 
@@ -343,6 +347,103 @@ EXAMPLES
 ```
 
 _See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/sync.ts)_
+
+## `ctv language:add CODE`
+
+Add a language to the project
+
+```
+USAGE
+  $ ctv language:add CODE [--copy-from lang]
+
+ARGUMENTS
+  CODE  language code to add
+
+FLAGS
+  --copy-from=lang  initialize the dictionary from a configured language
+
+DESCRIPTION
+  Add a language to the project
+
+EXAMPLES
+  $ ctv language:add uk
+
+  $ ctv language:add de --copy-from en
+```
+
+_See code: [src/commands/language/add.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/language/add.ts)_
+
+## `ctv language:list`
+
+List configured languages and dictionary status
+
+```
+USAGE
+  $ ctv language:list [--json]
+
+FLAGS
+  --json  output a stable JSON language list
+
+DESCRIPTION
+  List configured languages and dictionary status
+
+EXAMPLES
+  $ ctv language:list
+
+  $ ctv language:list --json
+```
+
+_See code: [src/commands/language/list.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/language/list.ts)_
+
+## `ctv language:remove CODE`
+
+Remove a language from the project
+
+```
+USAGE
+  $ ctv language:remove CODE [--delete-file] [-f] [--source lang]
+
+ARGUMENTS
+  CODE  language code to remove
+
+FLAGS
+  -f, --force        skip deletion confirmation
+      --delete-file  also delete the language JSON file
+      --source=lang  replacement source language when removing the current source
+
+DESCRIPTION
+  Remove a language from the project
+
+EXAMPLES
+  $ ctv language:remove uk
+
+  $ ctv language:remove uk --delete-file
+
+  $ ctv language:remove en --source uk --delete-file --force
+```
+
+_See code: [src/commands/language/remove.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/language/remove.ts)_
+
+## `ctv language:rename FROM TO`
+
+Rename a configured language and its JSON file
+
+```
+USAGE
+  $ ctv language:rename FROM TO
+
+ARGUMENTS
+  FROM  configured language code
+  TO    new language code
+
+DESCRIPTION
+  Rename a configured language and its JSON file
+
+EXAMPLES
+  $ ctv language:rename en en-US
+```
+
+_See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/language/rename.ts)_
 <!-- commandsstop -->
 
 ---
