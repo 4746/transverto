@@ -13,6 +13,7 @@ Label management command.
 * [PowerShell](#powershell)
 * [bash/zsh](#bashzsh)
 * [Translation workflow](#translation-workflow)
+* [Translation cache](#translation-cache)
 * [Commands](#commands)
 <!-- tocstop -->
 
@@ -110,12 +111,38 @@ JSON output always uses this envelope:
 }
 ```
 
-The legacy `ctv cache` command does not cache AI translations. The AI-aware
-cache is deferred to task 6 in `PLAN.md`.
+Every item in `results` includes `cached: true` for a cache hit and `cached: false`
+for a network translation.
+
+# Translation cache
+
+Successful AI translations are cached in the CLI cache directory. Cache keys
+include the selected profile name, model, source and target languages, and the
+exact NFC-normalized source text. Text case is significant. Provider, base URL,
+and API keys are deliberately excluded from the key.
+
+Configure retention in `.ctv.config.json`:
+
+```json
+{
+  "cache": {
+    "ttlMs": 2592000000,
+    "maxEntries": 1000
+  }
+}
+```
+
+`ttlMs` is the lifetime from creation; set it to `null` to disable expiration.
+After expired entries are removed, `maxEntries` keeps the most recently accessed
+entries. Use `ctv cache:list` for statistics and filtering, `ctv cache:clear`
+for selective removal, and `ctv cache:prune` for TTL/LRU maintenance. A corrupt
+cache file produces an error and is never silently replaced.
 
 # Commands
 <!-- commands -->
-* [`ctv cache`](#ctv-cache)
+* [`ctv cache:clear`](#ctv-cacheclear)
+* [`ctv cache:list`](#ctv-cachelist)
+* [`ctv cache:prune`](#ctv-cacheprune)
 * [`ctv doctor`](#ctv-doctor)
 * [`ctv export:csv [LANGCODE]`](#ctv-exportcsv-langcode)
 * [`ctv help [COMMAND]`](#ctv-help-command)
@@ -132,28 +159,84 @@ cache is deferred to task 6 in `PLAN.md`.
 * [`ctv language:rename FROM TO`](#ctv-languagerename-from-to)
 * [`ctv translate [TEXT]`](#ctv-translate-text)
 
-## `ctv cache`
+## `ctv cache:clear`
 
-Cache management command. 
+Remove cached AI translations
 
 ```
 USAGE
-  $ ctv cache [-c]
+  $ ctv cache:clear [--engine <value>] [-f] [--from <value>] [--json] [--model <value>] [--to <value>]
 
 FLAGS
-  -c, --clear
+  -f, --force           skip confirmation
+      --engine=<value>  clear only an engine profile
+      --from=<value>    clear only a source language
+      --json            output stable JSON
+      --model=<value>   clear only an exact model name
+      --to=<value>      clear only a target language
 
 DESCRIPTION
-  Cache management command.
-  Cache dir: C:\Users\User\AppData\Local\ctv
+  Remove cached AI translations
 
 EXAMPLES
-  $ ctv cache
+  $ ctv cache:clear --engine lmstudio --force
 
-  $ ctv cache --help
+  $ ctv cache:clear --from en --to uk --force --json
+
+  $ ctv cache:clear --force
 ```
 
-_See code: [src/commands/cache.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/cache.ts)_
+_See code: [src/commands/cache/clear.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/cache/clear.ts)_
+
+## `ctv cache:list`
+
+List cached AI translations and cache statistics
+
+```
+USAGE
+  $ ctv cache:list [--engine <value>] [--from <value>] [--json] [--model <value>] [--to <value>]
+
+FLAGS
+  --engine=<value>  filter by engine profile name
+  --from=<value>    filter by source language
+  --json            output stable JSON
+  --model=<value>   filter by exact model name
+  --to=<value>      filter by target language
+
+DESCRIPTION
+  List cached AI translations and cache statistics
+
+EXAMPLES
+  $ ctv cache:list
+
+  $ ctv cache:list --engine lmstudio --from en --to uk
+
+  $ ctv cache:list --json
+```
+
+_See code: [src/commands/cache/list.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/cache/list.ts)_
+
+## `ctv cache:prune`
+
+Prune expired and least-recently-used cache entries
+
+```
+USAGE
+  $ ctv cache:prune [--json]
+
+FLAGS
+  --json  output stable JSON
+
+DESCRIPTION
+  Prune expired and least-recently-used cache entries
+
+EXAMPLES
+  $ ctv cache:prune
+
+  $ ctv cache:prune --json
+```
+
+_See code: [src/commands/cache/prune.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/cache/prune.ts)_
 
 ## `ctv doctor`
 
@@ -591,6 +674,10 @@ _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v
 {
   "basePath": "dist/i18n",
   "basePathEnum": "dist/i18n/language.ts",
+  "cache": {
+    "maxEntries": 1000,
+    "ttlMs": 2592000000
+  },
   "engine": "lmstudio",
   "engines": {
     "lmstudio": {

@@ -7,23 +7,53 @@ import {
   ITranslationResult,
   TranslationEngine,
 } from './entities/translation.engine.js'
+import {TranslationCacheService} from './translation-cache.service.js'
+
+export interface ITranslationServiceOptions {
+  cacheFile: string
+  environment?: NodeJS.ProcessEnv
+  selectedEngine?: string
+}
 
 export class TranslationService {
   private constructor(
     private readonly profile: IResolvedEngineProfile,
     private readonly engine: TranslationEngine,
+    private readonly cache: TranslationCacheService,
   ) {}
 
   static fromConfig(
     config: IConfig,
-    selectedEngine?: string,
-    environment: NodeJS.ProcessEnv = process.env,
+    options: ITranslationServiceOptions,
   ): TranslationService {
-    const profile = resolveEngineProfile(config, selectedEngine, environment)
-    return new TranslationService(profile, new OpenAICompatibleEngine(profile))
+    const profile = resolveEngineProfile(
+      config,
+      options.selectedEngine,
+      options.environment ?? process.env,
+    )
+    const cache = new TranslationCacheService(options.cacheFile, config.cache)
+    return new TranslationService(profile, new OpenAICompatibleEngine(profile), cache)
   }
 
   async translate(request: ITranslationRequestPlan): Promise<ITranslationResult> {
+    const identity = {
+      from: request.from,
+      model: this.profile.model,
+      profile: this.profile.name,
+      sourceText: request.sourceText,
+      to: request.to,
+    }
+    const cachedEntry = await this.cache.get(identity)
+    if (cachedEntry) {
+      return {
+        ...request,
+        cached: true,
+        engine: this.profile.name,
+        model: this.profile.model,
+        translatedText: cachedEntry.translatedText,
+      }
+    }
+
     const translatedText = (await this.engine.translate(request)).trim()
     if (!translatedText) {
       throw new Error(
@@ -31,8 +61,11 @@ export class TranslationService {
       )
     }
 
+    await this.cache.set(identity, translatedText)
+
     return {
       ...request,
+      cached: false,
       engine: this.profile.name,
       model: this.profile.model,
       translatedText,

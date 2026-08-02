@@ -1,3 +1,4 @@
+import {ITranslationCacheConfig} from './entities/translation-cache.js'
 import {IEngineProfile} from "./entities/translation.engine.js";
 
 export const LANG_CODE_DEFAULT = 'en';
@@ -12,6 +13,7 @@ export interface IConfig {
    * The base path for language assets.
    */
   basePathEnum: string;
+  cache: ITranslationCacheConfig;
   engine: null | string;
   engines: Record<string, IEngineProfile>;
   /**
@@ -38,6 +40,10 @@ export const CONFIG_DEFAULT: IConfig = {
    * The base path for language assets.
    */
   basePathEnum: 'dist/i18n/language.ts',
+  cache: {
+    maxEntries: 1000,
+    ttlMs: 2_592_000_000,
+  },
   engine: null,
   engines: {},
   /**

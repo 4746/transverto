@@ -123,6 +123,7 @@ export function buildConfig(input: IConfigBuilderInput): IConfig {
   return {
     basePath: validated.translationsPath,
     basePathEnum: validated.typesPath,
+    cache: {...CONFIG_DEFAULT.cache},
     engine: validated.engine,
     engines: validated.engines,
     labelValidation: CONFIG_DEFAULT.labelValidation,

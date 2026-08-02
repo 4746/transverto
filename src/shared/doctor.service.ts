@@ -14,6 +14,7 @@ import {
   TDiagnosticSeverity,
 } from './entities/diagnostic.js'
 import {IResolvedEngineProfile} from './entities/translation.engine.js'
+import {validateTranslationCacheConfig} from './translation-cache.service.js'
 
 interface IDoctorOptions {
   checkEngine?: boolean
@@ -203,6 +204,28 @@ const checkShapeConflicts = (
         ),
       )
     }
+  }
+}
+
+const diagnoseCache = (
+  config: TJsonObject,
+  configFile: string,
+  diagnostics: IDiagnostic[],
+): void => {
+  if (config.cache === undefined) return
+
+  try {
+    validateTranslationCacheConfig(config.cache)
+  } catch (error) {
+    diagnostics.push(
+      diagnostic(
+        'CONFIG_CACHE_INVALID',
+        'error',
+        'Configuration field "cache" is invalid.',
+        configFile,
+        {reason: error instanceof Error ? error.message : String(error)},
+      ),
+    )
   }
 }
 
@@ -415,6 +438,7 @@ export async function runDoctor(options: IDoctorOptions = {}): Promise<IDoctorRe
 
   const basePath = validatePathField(parsedConfig, 'basePath', diagnostics, configFile)
   const basePathEnum = validatePathField(parsedConfig, 'basePathEnum', diagnostics, configFile)
+  diagnoseCache(parsedConfig, configFile, diagnostics)
 
   let languages: string[] | undefined
   if (!Array.isArray(parsedConfig.languages) || parsedConfig.languages.length === 0) {

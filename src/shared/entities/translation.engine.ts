@@ -28,6 +28,7 @@ export interface ITranslationRequestPlan {
 }
 
 export interface ITranslationResult extends ITranslationRequestPlan {
+  cached: boolean
   engine: string
   model: string
   translatedText: string

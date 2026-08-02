@@ -2,7 +2,9 @@ import {Flags} from '@oclif/core'
 import {printTable} from '@oclif/table'
 import chalk from "chalk";
 import {Listr} from 'listr2';
+import path from 'node:path'
 
+import {CTV_TRANSLATION_CACHE_FILE} from '../../shared/constants.js'
 import {ISyncRowReport} from "../../shared/entities/report.js";
 import {TTranslation} from "../../shared/entities/translate.js";
 import {Helper} from "../../shared/helper.js";
@@ -220,7 +222,10 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
     await this.readCliConfig();
 
     if (this.autoTranslate) {
-      this.translationService = TranslationService.fromConfig(this.cliConfig)
+      this.translationService = TranslationService.fromConfig(
+        this.cliConfig,
+        {cacheFile: path.join(this.config.cacheDir, CTV_TRANSLATION_CACHE_FILE)},
+      )
     }
 
     this.langCodePriority = this.createLangCodePriority([...this.cliConfig.languages]);

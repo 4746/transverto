@@ -1,6 +1,8 @@
 import {Args, Flags} from '@oclif/core'
+import path from 'node:path'
 
 import {validateLanguageCodes} from '../shared/config-builder.js'
+import {CTV_TRANSLATION_CACHE_FILE} from '../shared/constants.js'
 import {
   ITranslateOutput,
   ITranslationRequestPlan,
@@ -68,7 +70,13 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
         write: flags.write,
       })
 
-      translationService = TranslationService.fromConfig(this.cliConfig, flags.engine)
+      translationService = TranslationService.fromConfig(
+        this.cliConfig,
+        {
+          cacheFile: path.join(this.config.cacheDir, CTV_TRANSLATION_CACHE_FILE),
+          selectedEngine: flags.engine,
+        },
+      )
 
       if (flags.key?.length) {
         projectService = TranslationProjectService.load(this.cliConfig)
