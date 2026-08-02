@@ -83,9 +83,6 @@
     ],
     "topicSeparator": ":",
     "topics": {
-      "translate": {
-        "description": "A simple Translator."
-      },
       "label": {
         "description": "Label management command."
       },
