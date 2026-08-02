@@ -78,7 +78,7 @@ Deleted files:
 - Produces: `validateEngineConfiguration(engine, engines)` and `resolveEngineProfile(config, selectedEngine?, environment?)`.
 - Consumed later by the engine factory, translate command, init, doctor, and label sync.
 
-- [ ] **Step 1: Replace the legacy engine types with the new contracts**
+- [ ] **Step 1: Add the new contracts alongside the legacy contracts**
 
 Define these public shapes in `src/shared/entities/translation.engine.ts`:
 
@@ -127,6 +127,8 @@ export interface TranslationEngine {
 }
 ```
 
+Keep `TEngineTranslation`, `IParamTranslateText`, and `BaseEngine` in this file during Tasks 1–4 so the still-present legacy adapters compile at each commit boundary. Task 5 deletes both the adapters and these transitional declarations; they are never part of the completed v2 API.
+
 - [ ] **Step 2: Implement provider presets and profile validation**
 
 In `src/shared/engine-profile.ts`, define exact defaults:
@@ -156,7 +158,7 @@ Validate profile names with `/^[a-z0-9][a-z0-9._-]*$/`, environment names with `
 
 - [ ] **Step 3: Replace the config schema and defaults**
 
-Change `IConfig` to:
+Add the new profile fields to `IConfig`:
 
 ```ts
 export interface IConfig {
@@ -171,7 +173,7 @@ export interface IConfig {
 }
 ```
 
-Set `CONFIG_DEFAULT.engine` to `null` and `CONFIG_DEFAULT.engines` to `{}`. Remove `bing`, `google`, `terra`, `engineUseCache`, and `userAgent` from this interface and default.
+Set `CONFIG_DEFAULT.engine` to `null` and `CONFIG_DEFAULT.engines` to `{}`. Keep the existing optional `bing`, `google`, `terra`, `engineUseCache`, and `userAgent` declarations only until Task 5 so unchanged legacy sources compile between task commits. Task 5 removes those declarations and defaults together with their only consumers.
 
 - [ ] **Step 4: Extend config building without storing secrets**
 
@@ -197,7 +199,7 @@ npm run build
 npm run lint
 ```
 
-Expected: compilation and lint succeed after all old engine imports still needed by later tasks are temporarily adapted only where the compiler requires it; no legacy field remains in `IConfig`.
+Expected: compilation and lint succeed. New code uses only `engine` and `engines`; legacy fields remain referenced exclusively by the provider files scheduled for deletion in Task 5.
 
 - [ ] **Step 7: Commit the schema**
 
@@ -585,4 +587,3 @@ rg "translate:(bing|google|terra)|BingEngine|GoogleEngine|TerraEngine|engineUseC
 ```
 
 Expected: only intentional changes are present, task commits are visible, and the legacy search has no matches.
-
