@@ -6,13 +6,7 @@ import {
   LANG_CODE_DEFAULT,
 } from './config.js'
 import {validateEngineConfiguration} from './engine-profile.js'
-import {IEngineProfile, TEngineTranslation} from './entities/translation.engine.js'
-
-export const TRANSLATION_ENGINES: TEngineTranslation[] = [
-  'bing',
-  'google',
-  'terra',
-]
+import {IEngineProfile} from './entities/translation.engine.js'
 
 export interface IConfigBuilderInput {
   engine?: null | string
@@ -135,6 +129,5 @@ export function buildConfig(input: IConfigBuilderInput): IConfig {
     langCodeDefault: validated.source,
     languages: [...validated.languages],
     nameEnum: CONFIG_DEFAULT.nameEnum,
-    userAgent: CONFIG_DEFAULT.userAgent,
   }
 }

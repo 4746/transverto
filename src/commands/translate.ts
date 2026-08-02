@@ -132,7 +132,7 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
 
   private validateFlags({dryRun, from, keys, stdin, targets, text, write}: ITranslateFlagInput): void {
     const keyMode = Boolean(keys?.length)
-    const inputModes = Number(text !== undefined) + Number(stdin) + Number(keyMode)
+    const inputModes = Number(text !== undefined) + Number(Boolean(stdin)) + Number(keyMode)
     if (inputModes !== 1) {
       throw new Error('Choose exactly one input: positional text, --stdin, or one or more --key flags.')
     }

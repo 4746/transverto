@@ -29,9 +29,7 @@
     "test": "mocha --forbid-only \"test/**/*.test.ts\"",
     "version": "oclif readme",
     "win:delete:node_modules": "rd /s /q \"node_modules\"",
-    "npm:cache:clean": "npm cache clean --force",
-    "generate-config:bing": "node scripts/bing.generate-config.mjs",
-    "generate-config:terraprint": "node scripts/terraprint.generate-config.mjs"
+    "npm:cache:clean": "npm cache clean --force"
   },
   "bin": {
     "ctv": "./bin/run.js"
@@ -44,7 +42,6 @@
     "@oclif/table": "^0.5.9",
     "chalk": "^6.0.0",
     "fs-extra": "^11.4.0",
-    "got": "^15.1.0",
     "listr2": "^11.0.0"
   },
   "devDependencies": {

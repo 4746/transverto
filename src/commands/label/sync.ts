@@ -3,11 +3,11 @@ import {printTable} from '@oclif/table'
 import chalk from "chalk";
 import {Listr} from 'listr2';
 
-import {TranslateEngine} from "../../shared/engines/translate.engine.js";
 import {ISyncRowReport} from "../../shared/entities/report.js";
 import {TTranslation} from "../../shared/entities/translate.js";
 import {Helper} from "../../shared/helper.js";
 import {LabelBaseCommand} from "../../shared/label-base.command.js";
+import {TranslationService} from "../../shared/translation.service.js";
 import {UTIL} from "../../shared/util.js";
 
 /**
@@ -40,7 +40,7 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
   };
 
   private silent: boolean;
-  private translateEngine: TranslateEngine;
+  private translationService?: TranslationService;
 
   public async run(): Promise<void> {
     const {flags} = await this.parse(LabelSync)
@@ -219,7 +219,9 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
   private async taskReadConfiguration() {
     await this.readCliConfig();
 
-    this.translateEngine = new TranslateEngine({...this.cliConfig}, this.config.cacheDir);
+    if (this.autoTranslate) {
+      this.translationService = TranslationService.fromConfig(this.cliConfig)
+    }
 
     this.langCodePriority = this.createLangCodePriority([...this.cliConfig.languages]);
   }
@@ -230,11 +232,13 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
 
   private async translateText(text: string | string[], sourceLangCode: string, targetLangCode: string) {
     if (this.autoTranslate && !Array.isArray(text)) {
-      return this.translateEngine.translateText({
+      const result = await this.translationService.translate({
         from: sourceLangCode,
-        text,
+        sourceText: text,
         to: targetLangCode
       });
+
+      return result.translatedText
     }
 
     return text;
