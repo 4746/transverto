@@ -85,7 +85,6 @@ export default class ExportCsv extends LabelBaseCommand<typeof ExportCsv> {
       delimiter : flags.delimiter,
       eol: flags.eol ? ELineSeparator[flags.eol?.toUpperCase()] : ELineSeparator.LF,
       fields: this.csvFields,
-      quote: `"`,
       withBOM: flags.withBOM
     });
 

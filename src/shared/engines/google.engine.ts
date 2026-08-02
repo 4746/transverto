@@ -1,4 +1,4 @@
-import {ExtendOptions, Got, got} from "got";
+import got, {type ExtendOptions, type Got} from "got";
 
 import {DEFAULT_USER_AGENT} from "../constants.js";
 import {IGoogleConfig} from "../entities/google.config.js";

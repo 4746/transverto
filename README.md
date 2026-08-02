@@ -13,6 +13,9 @@ Label management command.
 <!-- tocstop -->
 
 # Usage
+
+Transverto 2 requires Node.js 24.15.0 or newer. The repository pins the development runtime in `.nvmrc`.
+
 ```shell
 npm install @cli107/transverto --save-dev
 ```
@@ -25,7 +28,7 @@ ctv --help
 <!-- commands -->
 * [`ctv cache`](#ctv-cache)
 * [`ctv export:csv [LANGCODE]`](#ctv-exportcsv-langcode)
-* [`ctv help [COMMANDS]`](#ctv-help-commands)
+* [`ctv help [COMMAND]`](#ctv-help-command)
 * [`ctv init`](#ctv-init)
 * [`ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-replace-sync)
 * [`ctv label:add [LABEL]`](#ctv-labeladd-label)
@@ -66,7 +69,7 @@ USAGE
   $ ctv export:csv [LANGCODE] [-d <value>] [--eol cr|crlf|lf] [-i <value>] [-o <value>] [--withBOM]
 
 ARGUMENTS
-  LANGCODE  The language code. If not specified, all available translations are exported.
+  [LANGCODE]  The language code. If not specified, all available translations are exported.
 
 FLAGS
   -d, --delimiter=<value>   [default: ,] delimiter of columns.
@@ -95,16 +98,16 @@ EXAMPLES
 
 _See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/export/csv.ts)_
 
-## `ctv help [COMMANDS]`
+## `ctv help [COMMAND]`
 
 Display help for ctv.
 
 ```
 USAGE
-  $ ctv help [COMMANDS] [-n]
+  $ ctv help [COMMAND...] [-n]
 
 ARGUMENTS
-  COMMANDS  Command to show help for.
+  [COMMAND...]  Command to show help for.
 
 FLAGS
   -n, --nested-commands  Include all nested commands in the output.
@@ -113,7 +116,7 @@ DESCRIPTION
   Display help for ctv.
 ```
 
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.0.13/src/commands/help.ts)_
+_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/6.2.56/src/commands/help.ts)_
 
 ## `ctv init`
 
@@ -148,11 +151,11 @@ USAGE
   $ ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]
 
 ARGUMENTS
-  ADD      Adds a new label.
-  DELETE   Deletes a label.
-  GET      Retrieves the labels.
-  REPLACE  Replaces a label with the given value.
-  SYNC     A command to update labels synchronously.
+  [ADD]      Adds a new label.
+  [DELETE]   Deletes a label.
+  [GET]      Retrieves the labels.
+  [REPLACE]  Replaces a label with the given value.
+  [SYNC]     A command to update labels synchronously.
 
 DESCRIPTION
   Label management command.
@@ -169,7 +172,7 @@ USAGE
   $ ctv label:add [LABEL] [-f <value>] [--noAutoTranslate] [--silent] [-t <value>]
 
 ARGUMENTS
-  LABEL  A label key
+  [LABEL]  A label key
 
 FLAGS
   -f, --fromLangCode=<value>  The language code of source text.
@@ -226,7 +229,7 @@ USAGE
   $ ctv label:get [LABEL] [--json] [-f <value>]
 
 ARGUMENTS
-  LABEL  A label key
+  [LABEL]  A label key
 
 FLAGS
   -f, --fromLangCode=<value>  The language code of source text.

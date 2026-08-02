@@ -1,4 +1,5 @@
-import {Args, Flags, ux} from '@oclif/core'
+import {Args, Flags} from '@oclif/core'
+import {printTable} from '@oclif/table'
 import chalk from "chalk";
 
 import {LabelBaseCommand} from "../../shared/label-base.command.js";
@@ -60,37 +61,21 @@ export default class LabelGet extends LabelBaseCommand<typeof LabelGet> {
       return rows
     }
 
-    ux.table(rows.map((v, k) => ({
-      ...v, id: (k + 1).toString(),
-    })), {
-      id: {
-        header: '#',
-        minWidth: 7,
-      },
-      // eslint-disable-next-line
-      code: {
-        get: (row) => {
-          return chalk.yellow(row.code);
-        },
-        header: 'Code',
-        minWidth: 10,
-      },
-      label: {
-        get: (row) => {
-          return chalk.green(row.label);
-        },
-        header: 'Label',
-        minWidth: 20,
-      },
-      trans: {
-        get: (row) => {
-          return chalk.cyan(row.trans);
-        },
-        header: 'Translate',
-        minWidth: 20,
-      }
-    }, {
-      'no-truncate': true
+    printTable({
+      columns: [
+        {key: 'id', name: '#', width: 7},
+        {key: 'code', name: 'Code', width: 10},
+        {key: 'label', name: 'Label', width: 20},
+        {key: 'trans', name: 'Translate', width: 20},
+      ],
+      data: rows.map((row, index) => ({
+        code: chalk.yellow(row.code),
+        id: (index + 1).toString(),
+        label: chalk.green(row.label),
+        trans: chalk.cyan(String(row.trans)),
+      })),
+      maxWidth: 'none',
+      overflow: 'wrap',
     })
   }
 

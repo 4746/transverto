@@ -1,4 +1,5 @@
-import {Flags, ux} from '@oclif/core'
+import {Flags} from '@oclif/core'
+import {printTable} from '@oclif/table'
 import chalk from "chalk";
 import {Listr} from 'listr2';
 
@@ -160,38 +161,26 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
       }
     });
 
-    const columnLangCode = this.cliConfig.languages.reduce((acc, code) => {
-      acc[code] = {
-        get: (row) => {
-          if (row[code] === '*') {
-            return chalk.green(row[code])
-          }
+    const data = [...mapRows.values()].map((row, index) => {
+      return Object.fromEntries([
+        ['id', (index + 1).toString()],
+        ...this.cliConfig.languages.map((code) => [
+          code,
+          row[code] === '*' ? chalk.green(row[code]) : chalk.red(row[code]),
+        ]),
+        ['label', chalk.cyan(row.label)],
+      ]);
+    });
 
-          return chalk.red(row[code]);
-        },
-        header: code,
-        minWidth: 7,
-      }
-      return acc;
-    }, {})
-
-    ux.table<Partial<ISyncRowReport>>([...mapRows.values()].map((v, k) => ({
-      ...v, id: (k + 1).toString(),
-    })), {
-      id: {
-        header: '#',
-        minWidth: 7,
-      },
-      ...columnLangCode,
-      label: {
-        get: (row) => {
-          return chalk.cyan(row.label);
-        },
-        header: 'Label',
-        minWidth: 20,
-      }
-    }, {
-      'no-truncate': true
+    printTable<Record<string, string>>({
+      columns: [
+        {key: 'id', name: '#', width: 7},
+        ...this.cliConfig.languages.map((code) => ({key: code, name: code, width: 7})),
+        {key: 'label', name: 'Label', width: 20},
+      ],
+      data,
+      maxWidth: 'none',
+      overflow: 'wrap',
     })
   }
 

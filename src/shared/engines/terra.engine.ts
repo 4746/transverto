@@ -1,4 +1,4 @@
-import {Got, got} from "got";
+import got, {type Got} from "got";
 
 import {DEFAULT_USER_AGENT} from "../constants.js";
 import {ITerraConfig, ITerraTranslationResult} from "../entities/terra.config.js";

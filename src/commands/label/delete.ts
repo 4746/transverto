@@ -1,4 +1,5 @@
-import {Args, Flags, ux} from '@oclif/core'
+import {Args, Flags} from '@oclif/core'
+import {printTable} from '@oclif/table'
 import chalk from "chalk";
 
 import {ILabelDeleteRowReport} from "../../shared/entities/report.js";
@@ -101,31 +102,19 @@ export default class LabelDelete extends LabelBaseCommand<typeof LabelDelete> {
       return;
     }
 
-    ux.table<Partial<ILabelDeleteRowReport>>(this.reportRows, {
-      code: {
-        get: (row) => {
-          return chalk.green(row.code);
-        },
-        header: 'Lang',
-        minWidth: 7,
-      },
-      status: {
-        get: (row) => {
-          return chalk.cyan(row.status);
-        },
-        header: 'Deleted',
-        minWidth: 7,
-      },
-      // eslint-disable-next-line
-      labels: {
-        get: (row) => {
-          return chalk.yellow(row.labels.join(', '));
-        },
-        header: 'Labels',
-        minWidth: 10
-      }
-    }, {
-      'no-truncate': true
+    printTable({
+      columns: [
+        {key: 'code', name: 'Lang', width: 7},
+        {key: 'status', name: 'Deleted', width: 7},
+        {key: 'labels', name: 'Labels', width: 10},
+      ],
+      data: this.reportRows.map((row) => ({
+        code: chalk.green(row.code),
+        labels: chalk.yellow(row.labels.join(', ')),
+        status: chalk.cyan(row.status),
+      })),
+      maxWidth: 'none',
+      overflow: 'wrap',
     })
   }
 }

@@ -2,6 +2,7 @@
 .DS_Store
 Thumbs.db
 *.log
+*.tsbuildinfo
 .npmrc
 
 # IDEs and editors
@@ -14,7 +15,6 @@ Thumbs.db
 /dist
 /lib
 /tmp
-package-lock.json
 yarn.lock
 
 # Dependency directories
@@ -31,3 +31,4 @@ oclif.manifest.json
 
 # Optional stylelint cache
 .stylelintcache
+/package-lock.json

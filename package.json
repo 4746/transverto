@@ -20,8 +20,8 @@
   "exports": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "shx rm -rf dist && tsc -b",
-    "lint": "eslint ./src --ext .ts",
+    "build": "shx rm -rf dist && tsc",
+    "lint": "eslint ./src",
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
     "prepack": "npm run build && oclif manifest && oclif readme",
@@ -37,37 +37,35 @@
     "ctv": "./bin/run.js"
   },
   "dependencies": {
-    "@inquirer/prompts": "^3.3.0",
-    "@json2csv/plainjs": "7.0.4",
-    "@oclif/core": "^3.16.0",
-    "@oclif/plugin-help": "^6.0.10",
-    "chalk": "^5.3.0",
-    "fs-extra": "^11.2.0",
-    "got": "^14.4.5",
-    "listr2": "^8.0.1"
+    "@inquirer/prompts": "^8.5.2",
+    "@json2csv/plainjs": "^7.0.7",
+    "@oclif/core": "^4.13.2",
+    "@oclif/plugin-help": "^6.2.56",
+    "@oclif/table": "^0.5.9",
+    "chalk": "^6.0.0",
+    "fs-extra": "^11.4.0",
+    "got": "^15.1.0",
+    "listr2": "^11.0.0"
   },
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",
-    "@oclif/test": "^3.1.10",
-    "@types/chai": "^4.3.11",
-    "@types/cli-progress": "^3.11.5",
+    "@oclif/test": "^4.1.21",
     "@types/fs-extra": "^11.0.4",
-    "@types/mocha": "^9.0.0",
-    "@types/node": "^18.19.5",
-    "chai": "^4.4.0",
-    "cheerio": "^1.0.0-rc.12",
-    "eslint": "^8.56.0",
-    "eslint-config-oclif": "^5.0.0",
-    "eslint-config-oclif-typescript": "^3.0.35",
-    "eslint-config-prettier": "^9.1.0",
-    "mocha": "^10.2.0",
-    "oclif": "^4.2.0",
-    "shx": "^0.3.4",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.13.3",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^10.8.0",
+    "eslint-config-oclif": "^6.0.179",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "mocha": "^11.7.6",
+    "oclif": "^4.23.29",
+    "shx": "^0.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^6.0.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24.15"
   },
   "files": [
     "/bin",

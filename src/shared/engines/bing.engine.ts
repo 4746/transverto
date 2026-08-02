@@ -1,4 +1,4 @@
-import {Got, RequestError, Response, got} from "got";
+import got, {type Got, type RequestError, type Response} from "got";
 
 import {IBingConfig, IBingFetchConfig, IBingRequestBody, IBingTranslationResult} from "../entities/bing.config.js";
 import {BaseEngine, IParamTranslateText} from "../entities/translation.engine.js";
