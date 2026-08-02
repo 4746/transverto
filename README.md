@@ -38,6 +38,13 @@ provider can coexist.
 
 ```json
 {
+  "batch": {
+    "concurrency": 1,
+    "delayMs": 0,
+    "retry": 2,
+    "maxItems": null,
+    "maxChars": null
+  },
   "engine": "lmstudio",
   "fallback": "openrouter",
   "engines": {
@@ -98,36 +105,98 @@ Translate positional text or stdin, or select one or more dictionary keys:
 ```shell
 ctv translate "Hello" --from en --to uk
 echo "Hello" | ctv translate --stdin --to uk --to de
-ctv translate --key home.title --key home.subtitle --to uk
+ctv translate --key home.title --key home.subtitle --to uk --to de
+ctv translate --key home.title --to uk --concurrency 2 --max-items 10
+ctv translate --key home.title --to uk --write --confirm
 ctv translate "Hello" --to uk --fallback openrouter
 ctv translate "Hello" --to uk --no-fallback
 ```
 
-`--key` is preview-only unless `--write` is supplied. All translations finish
-before target dictionaries are written atomically. `--dry-run` validates the
-profile, languages, dictionaries, and keys without a network request or write.
-`--file` input is intentionally not supported.
+`--key` is preview-only unless `--write` is supplied. All accepted translations
+finish before target dictionaries are written in one atomic transaction.
+`--confirm` requires `--write` and a TTY, then offers `accept` or `skip` for each
+safe result in input order. It is rejected before network access in non-TTY use.
+`--file` input is intentionally unsupported, and stdin is one source value rather
+than a line-delimited batch.
+
+Batch defaults come from `.ctv.config.json`:
+
+```json
+{
+  "batch": {
+    "concurrency": 1,
+    "delayMs": 0,
+    "retry": 2,
+    "maxItems": null,
+    "maxChars": null
+  }
+}
+```
+
+`concurrency` is the maximum number of active translation attempts. `delayMs` is
+the global minimum interval between attempt starts. `retry` counts additional
+attempts after the first and applies only to `rate_limit`, `timeout`, `network`,
+and `provider_unavailable`. Retry backoff starts at `max(delayMs, 100)`, doubles,
+and is capped at 30 seconds. CLI flags `--concurrency`, `--delay-ms`, `--retry`,
+`--max-items`, and `--max-chars` override only their matching config value for
+one run. `null` disables an item or character limit.
+
+Requests retain key order followed by target order even when work completes out
+of order. Limits select the longest initial translatable prefix. Once the next
+request exceeds either limit, it and all later translatable requests are
+`remaining`; automatically skipped values do not consume limits. The command
+skips empty/whitespace values, standalone numbers, absolute HTTP(S) URLs, and
+token-only values without a network call.
+
+The result must preserve the exact multiset of `{{name}}`, `{count}`, `%s`, and
+`%1$s` placeholders. Order may change, but spelling and occurrence count may
+not. A mismatch is a `conflict`, is never written, and does not stop other batch
+items. Individual failures also do not stop the batch. With `--write`, only safe
+accepted results are written.
+
+`--dry-run` validates profiles, flags, languages, dictionaries, and keys, then
+performs skip and limit planning without calling an engine or writing files.
+Eligible requests are `remaining` with reason `dry_run`; limit-excluded requests
+use reason `limit`.
 
 JSON output always uses this envelope:
 
 ```json
 {
+  "conflicts": [],
+  "failed": [],
+  "remaining": [],
+  "results": [],
+  "skipped": [],
+  "summary": {
+    "cached": 0,
+    "conflict": 0,
+    "failed": 0,
+    "remaining": 0,
+    "skipped": 0,
+    "translated": 0
+  },
   "dryRun": false,
   "requests": [],
-  "results": [],
   "written": []
 }
 ```
 
-Every item in `results` includes `cached`, `engine`, `provider`, and `model` for
-the profile that actually supplied the translation. When the fallback supplies
-the result, the item also includes `"fallback": {"from": "<primary>"}`.
+The six summary counts are mutually exclusive and sum to the request count.
+`results` contains only safe accepted values and reports `cached`, `engine`,
+`provider`, and `model`; fallback results also include
+`"fallback": {"from": "<primary>"}`. Automatic and confirmation skips have
+distinct reasons. Failures include their category, sanitized message, and total
+attempt count.
+
+The command exits 1 after emitting human or JSON output when any request failed
+or conflicted. Skipped or remaining requests alone keep exit 0. Invalid usage or
+configuration exits 2 before network/write.
 
 Before any network request, the service checks the primary cache and then the
-fallback cache. If both miss, the fallback profile is called only when the
-primary fails with `rate_limit`, `timeout`, `network`, or
-`provider_unavailable`. Errors categorized as `configuration`, `authentication`,
-`validation`, or `provider_response` never trigger fallback. `--fallback <name>`
+fallback cache. If both miss, the fallback profile is called only for the four
+recoverable categories listed above. `configuration`, `authentication`,
+`validation`, and `provider_response` never trigger fallback. `--fallback <name>`
 overrides the configured profile for one run; `--no-fallback` disables it.
 
 # Translation cache
@@ -647,22 +716,29 @@ Translate text or configured translation keys with an AI model
 
 ```
 USAGE
-  $ ctv translate [TEXT] --to <value>... [--json] [--dry-run] [--engine <value>] [--fallback <value> |
-    --no-fallback] [--from <value>] [--key <value>...] [--stdin] [--write]
+  $ ctv translate [TEXT] --to <value>... [--json] [--concurrency <value>] [--confirm] [--delay-ms <value>]
+    [--dry-run] [--engine <value>] [--fallback <value> | --no-fallback] [--from <value>] [--key <value>...] [--max-chars
+    <value>] [--max-items <value>] [--retry <value>] [--stdin] [--write]
 
 ARGUMENTS
   [TEXT]  text to translate
 
 FLAGS
-  --dry-run           validate and show requests without network calls or writes
-  --engine=<value>    named engine profile
-  --fallback=<value>  single fallback engine profile for this run
-  --from=<value>      source language code
-  --key=<value>...    translation key
-  --no-fallback       disable the configured fallback for this run
-  --stdin             read source text from stdin
-  --to=<value>...     (required) target language code
-  --write             write key translations to target dictionaries
+  --concurrency=<value>  maximum simultaneous translation attempts
+  --confirm              accept or skip each safe result before writing
+  --delay-ms=<value>     minimum milliseconds between attempt starts
+  --dry-run              validate and show requests without network calls or writes
+  --engine=<value>       named engine profile
+  --fallback=<value>     single fallback engine profile for this run
+  --from=<value>         source language code
+  --key=<value>...       translation key
+  --max-chars=<value>    maximum source characters in this batch
+  --max-items=<value>    maximum requests in this batch
+  --no-fallback          disable the configured fallback for this run
+  --retry=<value>        recoverable retries after the first attempt
+  --stdin                read source text from stdin
+  --to=<value>...        (required) target language code
+  --write                write key translations to target dictionaries
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -684,6 +760,10 @@ EXAMPLES
   $ ctv translate "Hello" --to uk --fallback openrouter
 
   $ ctv translate "Hello" --to uk --no-fallback
+
+  $ ctv translate --key home.title --to uk --concurrency 2 --max-items 10
+
+  $ ctv translate --key home.title --to uk --write --confirm
 ```
 
 _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/translate.ts)_
@@ -696,6 +776,13 @@ _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v
 {
   "basePath": "dist/i18n",
   "basePathEnum": "dist/i18n/language.ts",
+  "batch": {
+    "concurrency": 1,
+    "delayMs": 0,
+    "retry": 2,
+    "maxItems": null,
+    "maxChars": null
+  },
   "cache": {
     "maxEntries": 1000,
     "ttlMs": 2592000000
