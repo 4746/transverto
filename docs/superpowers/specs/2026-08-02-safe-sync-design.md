@@ -107,8 +107,9 @@ before any network request. Dry-run does not instantiate or call an engine.
 Safe translation results are attached as execution outcomes. A failed request,
 placeholder conflict, automatically skipped source, or limit/dry-run remaining
 request leaves that target key absent. Other safe actions may still be applied,
-but all resulting file changes are committed in one transaction. Any such
-non-success outcome is reported and causes exit code 1.
+but all resulting file changes are committed in one transaction. Failures,
+conflicts, and remaining work cause exit code 1; an automatic skip alone does
+not.
 
 ## Write Safety
 
@@ -151,4 +152,3 @@ No tests or test-infrastructure changes are added. Verification consists of:
 - atomic multi-file write and one enum update;
 - auto-translate dry-run proving no network call;
 - a stale-snapshot scenario proving no file changes are committed.
-

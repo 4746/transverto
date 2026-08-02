@@ -13,6 +13,7 @@ Label management command.
 * [PowerShell](#powershell)
 * [bash/zsh](#bashzsh)
 * [Translation workflow](#translation-workflow)
+* [Safe synchronization](#safe-synchronization)
 * [Translation status](#translation-status)
 * [Translation cache](#translation-cache)
 * [Commands](#commands)
@@ -199,6 +200,61 @@ fallback cache. If both miss, the fallback profile is called only for the four
 recoverable categories listed above. `configuration`, `authentication`,
 `validation`, and `provider_response` never trigger fallback. `--fallback <name>`
 overrides the configured profile for one run; `--no-fallback` disables it.
+
+# Safe synchronization
+
+`ctv label:sync` builds an immutable synchronization plan before changing any
+dictionary. The source defaults to `langCodeDefault`; `--source <lang>`
+overrides it explicitly, so source selection never depends on the order of
+`languages`. Without `--to`, every other configured language is a target.
+Repeat `--to` to select targets:
+
+```shell
+ctv label:sync --dry-run
+ctv label:sync --source en --to uk --to de --dry-run --json
+ctv label:sync --include 'home.*' --exclude '*.title' --dry-run
+ctv label:sync --extra remove --write
+```
+
+`--include` and `--exclude` are repeatable and use the same matcher as
+`ctv status`: exact keys, `*`, a leading wildcard such as `*.title`, or a
+trailing wildcard such as `home.*`. Excludes take precedence. Unselected keys
+and unselected languages are not changed.
+
+Missing target keys receive an empty string by default. Target-only keys use
+`--extra report` by default: they are retained and shown in the plan.
+`--extra keep` retains them quietly, while `--extra remove` deletes only
+matching extras.
+
+Use `--auto-translate` to send missing values through the same
+`TranslationService`, cache, fallback, placeholder checks, retries,
+concurrency, delay, and limits used by `ctv translate`:
+
+```shell
+ctv label:sync --auto-translate --engine lmstudio --fallback openrouter --write
+ctv label:sync --auto-translate --no-fallback --dry-run --json
+```
+
+Batch controls come from `batch` in `.ctv.config.json`; sync does not define
+separate concurrency or limit flags. Auto-translation failures, placeholder
+conflicts, skipped values, and limit-remaining requests are never written for
+their keys. Other safe changes are still committed together.
+
+`--dry-run` validates the project and emits the same initial `actions` plan
+as a write run, without network calls or file writes. Non-interactive mutation
+requires `--write`. In a TTY, omitting `--write` shows the plan and asks once
+for confirmation. Explicit `--write` is non-interactive.
+
+Immediately before writing, sync verifies the exact bytes of the source, every
+selected target, and the generated types file. If any changed after planning,
+the operation aborts. Changed dictionaries and the enum are then written in one
+rollback-capable transaction, and the enum is generated once.
+
+Human and JSON reports contain per-language counts for `added`, `removed`,
+`kept`, `translated`, `skipped`, `conflicts`, `failed`, and
+`remaining`. Exit 0 means a clean plan/write, exit 1 means conflicts, failures,
+or remaining work, and exit 2 means invalid usage/configuration/input or a
+write-safety failure.
 
 # Translation status
 
@@ -631,24 +687,44 @@ _See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/bl
 
 ## `ctv label:sync`
 
-Synchronizing tags in translation files...
+Safely synchronize configured translation dictionaries
 
 ```
 USAGE
-  $ ctv label:sync [--autoTranslate] [-r] [-s]
+  $ ctv label:sync [--json] [--auto-translate] [--dry-run] [--engine <value>] [--exclude <value>...] [--extra
+    keep|report|remove] [--fallback <value> | --no-fallback] [--include <value>...] [--source <value>] [--to <value>...]
+    [--write]
 
 FLAGS
-  -r, --noReport
-  -s, --silent
-  --autoTranslate
+  --auto-translate      translate missing values through the configured batch pipeline
+  --dry-run             show the immutable plan without network calls or writes
+  --engine=<value>      named engine profile for auto-translation
+  --exclude=<value>...  exclude exact or edge-wildcard key pattern
+  --extra=<option>      [default: report] policy for target keys absent from the source
+                        <options: keep|report|remove>
+  --fallback=<value>    single fallback engine profile for auto-translation
+  --include=<value>...  include exact or edge-wildcard key pattern
+  --no-fallback         disable configured fallback for auto-translation
+  --source=<value>      source language code
+  --to=<value>...       target language code
+  --write               apply the plan without interactive confirmation
+
+GLOBAL FLAGS
+  --json  Format output as json.
 
 DESCRIPTION
-  Synchronizing tags in translation files...
+  Safely synchronize configured translation dictionaries
 
 EXAMPLES
-  $ ctv label:sync
+  $ ctv label:sync --dry-run
 
-  $ ctv label:sync "hello.world" -f="en"
+  $ ctv label:sync --source en --to uk --to de --dry-run --json
+
+  $ ctv label:sync --include "home.*" --extra remove --write
+
+  $ ctv label:sync --auto-translate --engine lmstudio --write
+
+  $ ctv label:sync --auto-translate --no-fallback --dry-run
 ```
 
 _See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/sync.ts)_
