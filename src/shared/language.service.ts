@@ -5,6 +5,7 @@ import {applyFileTransaction, IFileMutation} from './atomic-file.js'
 import {validateConfigInput, validateLanguageCodes} from './config-builder.js'
 import {IConfig} from './config.js'
 import {CTV_CONFIG_FILE_NAME} from './constants.js'
+import {validateEngineConfiguration} from './engine-profile.js'
 import {collectTranslationKeys, generateTypesContent} from './types-generator.js'
 
 type TDictionary = Record<string, unknown>
@@ -72,7 +73,6 @@ export class LanguageProjectService {
 
     if (
       typeof parsed.langCodeDefault !== 'string' ||
-      typeof parsed.engine !== 'string' ||
       typeof parsed.basePath !== 'string' ||
       typeof parsed.basePathEnum !== 'string'
     ) {
@@ -80,12 +80,12 @@ export class LanguageProjectService {
     }
 
     validateConfigInput({
-      engine: parsed.engine,
       languages: parsed.languages as string[],
       source: parsed.langCodeDefault,
       translationsPath: parsed.basePath,
       typesPath: parsed.basePathEnum,
     })
+    validateEngineConfiguration(parsed.engine, parsed.engines)
 
     return new LanguageProjectService(cwd, configFile, parsed as unknown as IConfig)
   }

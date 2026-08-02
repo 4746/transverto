@@ -5,7 +5,8 @@ import {
   IConfig,
   LANG_CODE_DEFAULT,
 } from './config.js'
-import {TEngineTranslation} from './entities/translation.engine.js'
+import {validateEngineConfiguration} from './engine-profile.js'
+import {IEngineProfile, TEngineTranslation} from './entities/translation.engine.js'
 
 export const TRANSLATION_ENGINES: TEngineTranslation[] = [
   'bing',
@@ -14,7 +15,8 @@ export const TRANSLATION_ENGINES: TEngineTranslation[] = [
 ]
 
 export interface IConfigBuilderInput {
-  engine?: string
+  engine?: null | string
+  engineProfile?: IEngineProfile
   languages?: string[]
   source?: string
   translationsPath?: string
@@ -22,7 +24,8 @@ export interface IConfigBuilderInput {
 }
 
 export interface IValidatedConfigInput {
-  engine: TEngineTranslation
+  engine: null | string
+  engines: Record<string, IEngineProfile>
   languages: string[]
   source: string
   translationsPath: string
@@ -102,18 +105,17 @@ export function validateConfigInput(
     throw new Error(`Source language "${source}" must be included in --languages.`)
   }
 
-  if (!TRANSLATION_ENGINES.includes(engine as TEngineTranslation)) {
-    throw new Error(
-      `Unsupported translation engine "${engine}". Choose ${TRANSLATION_ENGINES.join(', ')}.`,
-    )
-  }
+  const engines = engine === null
+    ? validateEngineConfiguration(null, {})
+    : validateEngineConfiguration(engine, input.engineProfile ? {[engine]: input.engineProfile} : {})
 
   if (!typesPath.toLowerCase().endsWith('.ts')) {
     throw new Error('Types path must point to a .ts file.')
   }
 
   return {
-    engine: engine as TEngineTranslation,
+    engine,
+    engines,
     languages,
     source,
     translationsPath,
@@ -127,9 +129,8 @@ export function buildConfig(input: IConfigBuilderInput): IConfig {
   return {
     basePath: validated.translationsPath,
     basePathEnum: validated.typesPath,
-    bing: {...CONFIG_DEFAULT.bing},
     engine: validated.engine,
-    engineUseCache: CONFIG_DEFAULT.engineUseCache,
+    engines: validated.engines,
     labelValidation: CONFIG_DEFAULT.labelValidation,
     langCodeDefault: validated.source,
     languages: [...validated.languages],

@@ -2,7 +2,7 @@ import {DEFAULT_USER_AGENT} from "./constants.js";
 import {IBingConfig} from "./entities/bing.config.js";
 import {IGoogleConfig} from "./entities/google.config.js";
 import {ITerraConfig} from "./entities/terra.config.js";
-import {TEngineTranslation} from "./entities/translation.engine.js";
+import {IEngineProfile} from "./entities/translation.engine.js";
 
 export const LANG_CODE_DEFAULT = 'en';
 export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\-\\_]{3,100}$';
@@ -20,7 +20,8 @@ export interface IConfig {
    * Configuration options for Bing setting.
    */
   bing?: IBingConfig;
-  engine: TEngineTranslation;
+  engine: null | string;
+  engines: Record<string, IEngineProfile>;
   engineUseCache?: false;
   /**
    * Configuration options for Google setting.
@@ -64,7 +65,8 @@ export const CONFIG_DEFAULT: IConfig = {
     raw: false,
     userAgent: DEFAULT_USER_AGENT
   },
-  engine: "bing",
+  engine: null,
+  engines: {},
   engineUseCache: false,
   /**
    * Regular expression pattern for validating labels.

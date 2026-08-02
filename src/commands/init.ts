@@ -200,7 +200,7 @@ export default class Init extends LabelBaseCommand<typeof Init> {
 
       engine ??= await select<TEngineTranslation>({
         choices: TRANSLATION_ENGINES.map(value => ({name: value, value})),
-        default: CONFIG_DEFAULT.engine,
+        default: TRANSLATION_ENGINES[0],
         message: 'Translation engine:',
       })
 
