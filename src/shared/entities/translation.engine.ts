@@ -1,3 +1,11 @@
+import type {
+  ITranslationBatchSummary,
+  ITranslationConflict,
+  ITranslationFailed,
+  ITranslationRemaining,
+  ITranslationSkipped,
+} from './translation-batch.js'
+
 /**
  * The types of translation engines available.
  */
@@ -39,9 +47,14 @@ export interface ITranslationResult extends ITranslationRequestPlan {
 }
 
 export interface ITranslateOutput {
+  conflicts: ITranslationConflict[]
   dryRun: boolean
+  failed: ITranslationFailed[]
+  remaining: ITranslationRemaining[]
   requests: ITranslationRequestPlan[]
   results: ITranslationResult[]
+  skipped: ITranslationSkipped[]
+  summary: ITranslationBatchSummary
   written: string[]
 }
 

@@ -7,6 +7,7 @@ import {TranslationError} from '../shared/entities/translation-error.js'
 import {
   ITranslateOutput,
   ITranslationRequestPlan,
+  ITranslationResult,
 } from '../shared/entities/translation.engine.js'
 import {LabelBaseCommand} from '../shared/label-base.command.js'
 import {TranslationProjectService} from '../shared/translation-project.service.js'
@@ -102,7 +103,24 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
       }
 
       if (flags['dry-run']) {
-        const output: ITranslateOutput = {dryRun: true, requests, results: [], written: []}
+        const output: ITranslateOutput = {
+          conflicts: [],
+          dryRun: true,
+          failed: [],
+          remaining: requests.map(request => ({reason: 'dry_run', request})),
+          requests,
+          results: [],
+          skipped: [],
+          summary: {
+            cached: 0,
+            conflict: 0,
+            failed: 0,
+            remaining: requests.length,
+            skipped: 0,
+            translated: 0,
+          },
+          written: [],
+        }
         return this.output(output)
       }
     } catch (error) {
@@ -110,11 +128,28 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
     }
 
     try {
-      const results = []
+      const results: ITranslationResult[] = []
       for (const request of requests) results.push(await translationService.translate(request))
 
       const written = flags.write ? await projectService.write(results) : []
-      return this.output({dryRun: false, requests, results, written})
+      return this.output({
+        conflicts: [],
+        dryRun: false,
+        failed: [],
+        remaining: [],
+        requests,
+        results,
+        skipped: [],
+        summary: {
+          cached: results.filter(result => result.cached).length,
+          conflict: 0,
+          failed: 0,
+          remaining: 0,
+          skipped: 0,
+          translated: results.filter(result => !result.cached).length,
+        },
+        written,
+      })
     } catch (error) {
       this.error(this.errorMessage(error), {exit: 1})
     }
