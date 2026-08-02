@@ -94,6 +94,7 @@ export function validateTranslationCacheConfig(value: unknown): ITranslationCach
 }
 
 export class TranslationCacheService {
+  private mutationQueue: Promise<void> = Promise.resolve()
   constructor(
     private readonly file: string,
     private readonly config: ITranslationCacheConfig,
@@ -103,27 +104,31 @@ export class TranslationCacheService {
   }
 
   async clear(filters: ITranslationCacheFilters = {}): Promise<number> {
-    const cache = await this.read()
-    const retained = cache.entries.filter(entry => !matchesFilters(entry, filters))
-    const removed = cache.entries.length - retained.length
-    if (removed > 0) await this.write({...cache, entries: retained})
-    return removed
+    return this.runExclusive(async () => {
+      const cache = await this.read()
+      const retained = cache.entries.filter(entry => !matchesFilters(entry, filters))
+      const removed = cache.entries.length - retained.length
+      if (removed > 0) await this.write({...cache, entries: retained})
+      return removed
+    })
   }
 
   async get(identity: ITranslationCacheIdentity): Promise<ITranslationCacheEntry | undefined> {
-    const cache = await this.read()
-    const id = cacheId({...identity, sourceText: normalizeText(identity.sourceText)})
-    const entry = cache.entries.find(candidate => candidate.id === id)
-    if (!entry) return undefined
+    return this.runExclusive(async () => {
+      const cache = await this.read()
+      const id = cacheId({...identity, sourceText: normalizeText(identity.sourceText)})
+      const entry = cache.entries.find(candidate => candidate.id === id)
+      if (!entry) return
 
-    if (this.isExpired(entry)) {
-      await this.write({...cache, entries: cache.entries.filter(candidate => candidate.id !== id)})
-      return undefined
-    }
+      if (this.isExpired(entry)) {
+        await this.write({...cache, entries: cache.entries.filter(candidate => candidate.id !== id)})
+        return
+      }
 
-    entry.accessedAt = this.now().toISOString()
-    await this.write(cache)
-    return {...entry}
+      entry.accessedAt = this.now().toISOString()
+      await this.write(cache)
+      return {...entry}
+    })
   }
 
   async list(filters: ITranslationCacheFilters = {}): Promise<ITranslationCacheListResult> {
@@ -139,6 +144,38 @@ export class TranslationCacheService {
   }
 
   async prune(): Promise<ITranslationCachePruneResult> {
+    return this.runExclusive(async () => this.pruneUnlocked())
+  }
+
+  async set(identity: ITranslationCacheIdentity, translatedText: string): Promise<void> {
+    return this.runExclusive(async () => {
+      const cache = await this.read()
+      const sourceText = normalizeText(identity.sourceText)
+      const normalizedIdentity = {...identity, sourceText}
+      const id = cacheId(normalizedIdentity)
+      const timestamp = this.now().toISOString()
+      const previous = cache.entries.find(entry => entry.id === id)
+      const entry: ITranslationCacheEntry = {
+        ...normalizedIdentity,
+        accessedAt: timestamp,
+        createdAt: previous?.createdAt ?? timestamp,
+        id,
+        translatedText,
+      }
+
+      const entries = cache.entries.filter(candidate => candidate.id !== id)
+      entries.push(entry)
+      await this.write({...cache, entries})
+      await this.pruneUnlocked()
+    })
+  }
+
+  private isExpired(entry: ITranslationCacheEntry): boolean {
+    return this.config.ttlMs !== null &&
+      this.now().getTime() - Date.parse(entry.createdAt) >= this.config.ttlMs
+  }
+
+  private async pruneUnlocked(): Promise<ITranslationCachePruneResult> {
     const cache = await this.read()
     const active = cache.entries.filter(entry => !this.isExpired(entry))
     const expired = cache.entries.length - active.length
@@ -150,32 +187,6 @@ export class TranslationCacheService {
     if (removed > 0) await this.write({...cache, entries: retained})
 
     return {expired, remaining: retained.length, removed, removedByLimit}
-  }
-
-  async set(identity: ITranslationCacheIdentity, translatedText: string): Promise<void> {
-    const cache = await this.read()
-    const sourceText = normalizeText(identity.sourceText)
-    const normalizedIdentity = {...identity, sourceText}
-    const id = cacheId(normalizedIdentity)
-    const timestamp = this.now().toISOString()
-    const previous = cache.entries.find(entry => entry.id === id)
-    const entry: ITranslationCacheEntry = {
-      ...normalizedIdentity,
-      accessedAt: timestamp,
-      createdAt: previous?.createdAt ?? timestamp,
-      id,
-      translatedText,
-    }
-
-    const entries = cache.entries.filter(candidate => candidate.id !== id)
-    entries.push(entry)
-    await this.write({...cache, entries})
-    await this.prune()
-  }
-
-  private isExpired(entry: ITranslationCacheEntry): boolean {
-    return this.config.ttlMs !== null &&
-      this.now().getTime() - Date.parse(entry.createdAt) >= this.config.ttlMs
   }
 
   private async read(): Promise<ITranslationCacheFile> {
@@ -203,6 +214,12 @@ export class TranslationCacheService {
     } catch (error) {
       throw new Error(`Translation cache is corrupted at ${this.file}: ${error instanceof Error ? error.message : String(error)}`)
     }
+  }
+
+  private async runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.mutationQueue.then(operation, operation)
+    this.mutationQueue = result.then(() => {}, () => {})
+    return result
   }
 
   private async write(cache: ITranslationCacheFile): Promise<void> {
