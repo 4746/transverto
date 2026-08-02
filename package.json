@@ -21,12 +21,13 @@
   "type": "module",
   "scripts": {
     "build": "shx rm -rf dist && tsc",
-    "lint": "eslint ./src",
+    "lint": "eslint ./src ./test/e2e",
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
     "prepack": "npm run build && oclif manifest && oclif readme",
     "prepare": "npm run build",
     "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "test:e2e": "npm run build && node --test test/e2e/label-sync.test.mjs",
     "version": "oclif readme",
     "win:delete:node_modules": "rd /s /q \"node_modules\"",
     "npm:cache:clean": "npm cache clean --force"

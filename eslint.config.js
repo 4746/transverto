@@ -43,4 +43,22 @@ export default [
       'unicorn/switch-case-braces': 'off',
     },
   },
+  {
+    files: ['test/e2e/**/*.mjs'],
+    rules: {
+      'mocha/consistent-spacing-between-blocks': 'off',
+      'mocha/handle-done-callback': 'off',
+      'mocha/max-top-level-suites': 'off',
+      'mocha/no-empty-description': 'off',
+      'mocha/no-exclusive-tests': 'off',
+      'mocha/no-exports': 'off',
+      'mocha/no-global-tests': 'off',
+      'mocha/no-nested-tests': 'off',
+      'mocha/no-pending-tests': 'off',
+      'mocha/no-return-and-callback': 'off',
+      'mocha/no-sibling-hooks': 'off',
+      'mocha/no-skipped-tests': 'off',
+      'mocha/no-top-level-hooks': 'off',
+    },
+  },
 ]
