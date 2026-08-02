@@ -21,7 +21,7 @@ interface ITranslateFlagInput {
 
 export default class Translate extends LabelBaseCommand<typeof Translate> {
   static args = {
-    text: Args.string({description: 'text to translate'}),
+    text: Args.string({description: 'text to translate', ignoreStdin: true}),
   }
 
   static description = 'Translate text or configured translation keys with an AI model'

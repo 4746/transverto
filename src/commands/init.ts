@@ -65,6 +65,48 @@ const makeEngineProfile = (values: IEngineFlagValues): IEngineProfile | undefine
   }
 }
 
+const resolveInteractiveEngine = async (
+  values: IEngineFlagValues,
+): Promise<IEngineFlagValues> => {
+  if (!hasEngineFlags(values) && !await confirm({
+    default: false,
+    message: 'Configure an AI translation profile?',
+  })) return values
+
+  const provider = values.provider ?? await select<TEngineProvider>({
+    choices: ENGINE_PROVIDERS.map(value => ({name: value, value})),
+    default: 'lmstudio',
+    message: 'AI provider:',
+  })
+  const engine = values.engine ?? await input({
+    default: provider,
+    message: 'Engine profile name:',
+  })
+  const model = values.model ?? await input({
+    message: 'Model identifier:',
+    validate: value => value.trim().length > 0 || 'Model identifier is required.',
+  })
+
+  let {apiKeyEnv, baseUrl} = values
+  if (!baseUrl) {
+    const defaultBaseUrl = ENGINE_PROVIDER_DEFAULTS[provider].baseUrl ?? ''
+    const enteredBaseUrl = await input({
+      default: defaultBaseUrl,
+      message: 'API base URL:',
+    })
+    baseUrl = enteredBaseUrl || undefined
+  }
+
+  if (ENGINE_PROVIDER_DEFAULTS[provider].requiresApiKey && !apiKeyEnv) {
+    apiKeyEnv = await input({
+      default: provider === 'google-ai' ? 'GEMINI_API_KEY' : 'OPENROUTER_API_KEY',
+      message: 'API key environment variable:',
+    })
+  }
+
+  return {apiKeyEnv, baseUrl, engine, model, provider}
+}
+
 export default class Init extends LabelBaseCommand<typeof Init> {
   static description = 'Create a Transverto project configuration'
 
@@ -245,44 +287,18 @@ export default class Init extends LabelBaseCommand<typeof Init> {
         message: 'Source language:',
       })
 
-      const configureEngine = hasEngineFlags({apiKeyEnv, baseUrl, engine, model, provider}) || await confirm({
-        default: false,
-        message: 'Configure an AI translation profile?',
+      const interactiveEngine = await resolveInteractiveEngine({
+        apiKeyEnv,
+        baseUrl,
+        engine,
+        model,
+        provider,
       })
-
-      if (configureEngine) {
-        provider ??= await select<TEngineProvider>({
-          choices: ENGINE_PROVIDERS.map(value => ({name: value, value})),
-          default: 'lmstudio',
-          message: 'AI provider:',
-        })
-
-        engine ??= await input({
-          default: provider,
-          message: 'Engine profile name:',
-        })
-
-        model ??= await input({
-          message: 'Model identifier:',
-          validate: value => value.trim().length > 0 || 'Model identifier is required.',
-        })
-
-        if (!baseUrl) {
-          const defaultBaseUrl = ENGINE_PROVIDER_DEFAULTS[provider].baseUrl ?? ''
-          const enteredBaseUrl = await input({
-            default: defaultBaseUrl,
-            message: 'API base URL:',
-          })
-          baseUrl = enteredBaseUrl || undefined
-        }
-
-        if (ENGINE_PROVIDER_DEFAULTS[provider].requiresApiKey && !apiKeyEnv) {
-          apiKeyEnv = await input({
-            default: provider === 'google-ai' ? 'GEMINI_API_KEY' : 'OPENROUTER_API_KEY',
-            message: 'API key environment variable:',
-          })
-        }
-      }
+      apiKeyEnv = interactiveEngine.apiKeyEnv
+      baseUrl = interactiveEngine.baseUrl
+      engine = interactiveEngine.engine
+      model = interactiveEngine.model
+      provider = interactiveEngine.provider
 
       translationsPath ??= await input({
         default: CONFIG_DEFAULT.basePath,

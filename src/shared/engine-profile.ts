@@ -46,6 +46,52 @@ const validateBaseUrl = (value: string, profileName: string): string => {
   return value.replace(/\/+$/, '')
 }
 
+const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
+  if (!PROFILE_NAME_PATTERN.test(name)) {
+    throw new Error(`Engine profile name "${name}" is invalid.`)
+  }
+
+  if (!isObject(rawProfile)) {
+    throw new Error(`Engine profile "${name}" must be an object.`)
+  }
+
+  const {apiKeyEnv, baseUrl, model, provider} = rawProfile
+  if (!ENGINE_PROVIDERS.includes(provider as TEngineProvider)) {
+    throw new Error(`Engine profile "${name}" has an unsupported provider.`)
+  }
+
+  if (typeof model !== 'string' || model.trim().length === 0) {
+    throw new Error(`Engine profile "${name}" requires a non-empty model.`)
+  }
+
+  if (apiKeyEnv !== undefined && (
+    typeof apiKeyEnv !== 'string' || !ENVIRONMENT_NAME_PATTERN.test(apiKeyEnv)
+  )) {
+    throw new Error(`Engine profile "${name}" has an invalid apiKeyEnv.`)
+  }
+
+  const defaults = ENGINE_PROVIDER_DEFAULTS[provider as TEngineProvider]
+  if (defaults.requiresApiKey && apiKeyEnv === undefined) {
+    throw new Error(`Engine profile "${name}" requires apiKeyEnv.`)
+  }
+
+  if (baseUrl !== undefined && typeof baseUrl !== 'string') {
+    throw new Error(`Engine profile "${name}" baseUrl must be a string.`)
+  }
+
+  const resolvedBaseUrl = typeof baseUrl === 'string' ? baseUrl : defaults.baseUrl
+  if (!resolvedBaseUrl) {
+    throw new Error(`Engine profile "${name}" requires baseUrl.`)
+  }
+
+  return {
+    ...(typeof apiKeyEnv === 'string' ? {apiKeyEnv} : {}),
+    ...(typeof baseUrl === 'string' ? {baseUrl: validateBaseUrl(baseUrl, name)} : {}),
+    model: model.trim(),
+    provider: provider as TEngineProvider,
+  }
+}
+
 export function validateEngineConfiguration(
   engine: unknown,
   engines: unknown,
@@ -60,49 +106,7 @@ export function validateEngineConfiguration(
 
   const validated: Record<string, IEngineProfile> = {}
   for (const [name, rawProfile] of Object.entries(engines)) {
-    if (!PROFILE_NAME_PATTERN.test(name)) {
-      throw new Error(`Engine profile name "${name}" is invalid.`)
-    }
-
-    if (!isObject(rawProfile)) {
-      throw new Error(`Engine profile "${name}" must be an object.`)
-    }
-
-    const {apiKeyEnv, baseUrl, model, provider} = rawProfile
-    if (!ENGINE_PROVIDERS.includes(provider as TEngineProvider)) {
-      throw new Error(`Engine profile "${name}" has an unsupported provider.`)
-    }
-
-    if (typeof model !== 'string' || model.trim().length === 0) {
-      throw new Error(`Engine profile "${name}" requires a non-empty model.`)
-    }
-
-    if (apiKeyEnv !== undefined && (
-      typeof apiKeyEnv !== 'string' || !ENVIRONMENT_NAME_PATTERN.test(apiKeyEnv)
-    )) {
-      throw new Error(`Engine profile "${name}" has an invalid apiKeyEnv.`)
-    }
-
-    const defaults = ENGINE_PROVIDER_DEFAULTS[provider as TEngineProvider]
-    if (defaults.requiresApiKey && apiKeyEnv === undefined) {
-      throw new Error(`Engine profile "${name}" requires apiKeyEnv.`)
-    }
-
-    if (baseUrl !== undefined && typeof baseUrl !== 'string') {
-      throw new Error(`Engine profile "${name}" baseUrl must be a string.`)
-    }
-
-    const resolvedBaseUrl = typeof baseUrl === 'string' ? baseUrl : defaults.baseUrl
-    if (!resolvedBaseUrl) {
-      throw new Error(`Engine profile "${name}" requires baseUrl.`)
-    }
-
-    validated[name] = {
-      ...(typeof apiKeyEnv === 'string' ? {apiKeyEnv} : {}),
-      ...(typeof baseUrl === 'string' ? {baseUrl: validateBaseUrl(baseUrl, name)} : {}),
-      model: model.trim(),
-      provider: provider as TEngineProvider,
-    }
+    validated[name] = validateProfile(name, rawProfile)
   }
 
   if (typeof engine === 'string' && !(engine in validated)) {
