@@ -17,11 +17,13 @@ const validatePattern = (pattern: string): void => {
   }
 }
 
-const matchesPattern = (key: string, pattern: string): boolean => {
-  if (pattern === '*') return true
-  if (pattern.startsWith('*')) return key.endsWith(pattern.slice(1))
-  if (pattern.endsWith('*')) return key.startsWith(pattern.slice(0, -1))
-  return key === pattern
+export const matchesKeyPattern = (key: string, pattern: string, ignoreCase = false): boolean => {
+  const candidate = ignoreCase ? key.toLowerCase() : key
+  const expected = ignoreCase ? pattern.toLowerCase() : pattern
+  if (expected === '*') return true
+  if (expected.startsWith('*')) return candidate.endsWith(expected.slice(1))
+  if (expected.endsWith('*')) return candidate.startsWith(expected.slice(0, -1))
+  return candidate === expected
 }
 
 export function normalizeKeyPatterns(
@@ -34,6 +36,6 @@ export function normalizeKeyPatterns(
 }
 
 export function matchesKeyFilters(key: string, filters: IKeyFilters): boolean {
-  const included = filters.include.length === 0 || filters.include.some(pattern => matchesPattern(key, pattern))
-  return included && !filters.exclude.some(pattern => matchesPattern(key, pattern))
+  const included = filters.include.length === 0 || filters.include.some(pattern => matchesKeyPattern(key, pattern))
+  return included && !filters.exclude.some(pattern => matchesKeyPattern(key, pattern))
 }

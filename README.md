@@ -15,6 +15,7 @@ Label management command.
 * [Translation workflow](#translation-workflow)
 * [Safe synchronization](#safe-synchronization)
 * [Bulk key operations](#bulk-key-operations)
+* [Label search](#label-search)
 * [Translation status](#translation-status)
 * [Translation cache](#translation-cache)
 * [Commands](#commands)
@@ -282,6 +283,41 @@ target values or branches. JSON output always includes `changes`, `conflicts`,
 and the complete sorted `matchedKeys` list. Successful writes update all changed
 dictionaries and the generated TypeScript types in one rollback-capable file
 transaction; the types file is generated once.
+
+# Label search
+
+`ctv label:get <query>` is a strictly read-only search across configured
+translation dictionaries. The default mode is `prefix`, which returns an exact
+leaf plus its descendants. Select a mode explicitly when scripting:
+
+- `--mode exact` matches one leaf key;
+- `--mode prefix` matches the exact key and `query.*` descendants;
+- `--mode glob` uses the shared exact/leading-wildcard/trailing-wildcard matcher;
+- `--mode text` performs a substring search in translation values.
+
+```shell
+ctv label:get home.title --mode exact
+ctv label:get home --mode prefix --language en --language uk
+ctv label:get '*.title' --mode glob --ignore-case --json
+ctv label:get welcome --mode text --compact
+ctv label:get home --mode prefix --limit 10
+```
+
+Repeat `--language` to select languages; output always follows configuration
+language order. `--ignore-case` applies to either keys or translation text,
+depending on the mode. Results are sorted by key before `--limit` is applied.
+
+Expanded output shows one key/language pair per row. `--compact` shows one row
+per key with language columns and displays a missing translation as `—`.
+Stable JSON is key-centric and contains `query`, `mode`, `ignoreCase`,
+`languages`, `limit`, `results`, `total`, and `truncated`; every result
+contains all selected languages in configuration order and represents missing
+values as `null`.
+
+When QUERY is omitted in a TTY, the command prompts for it. Non-interactive use
+without QUERY exits 2. Search never writes dictionaries, generated types, or
+configuration, and never calls a translation engine.
+
 # Translation status
 
 `ctv status` compares configured target dictionaries with the source language
@@ -353,10 +389,10 @@ cache file produces an error and is never silently replaced.
 * [`ctv export:csv [LANGCODE]`](#ctv-exportcsv-langcode)
 * [`ctv help [COMMAND]`](#ctv-help-command)
 * [`ctv init`](#ctv-init)
-* [`ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-replace-sync)
+* [`ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-move-rename-replace-sync)
 * [`ctv label:add [LABEL]`](#ctv-labeladd-label)
 * [`ctv label:delete PATTERN`](#ctv-labeldelete-pattern)
-* [`ctv label:get [LABEL]`](#ctv-labelget-label)
+* [`ctv label:get [QUERY]`](#ctv-labelget-query)
 * [`ctv label:move OLD-PREFIX NEW-PREFIX`](#ctv-labelmove-old-prefix-new-prefix)
 * [`ctv label:rename OLD NEW`](#ctv-labelrename-old-new)
 * [`ctv label:replace LABEL`](#ctv-labelreplace-label)
@@ -575,18 +611,20 @@ EXAMPLES
 
 _See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/init.ts)_
 
-## `ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]`
+## `ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]`
 
 Label management command.
 
 ```
 USAGE
-  $ ctv label [ADD] [DELETE] [GET] [REPLACE] [SYNC]
+  $ ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]
 
 ARGUMENTS
   [ADD]      Adds a new label.
   [DELETE]   Deletes a label.
   [GET]      Retrieves the labels.
+  [MOVE]     Moves a label branch.
+  [RENAME]   Renames a label.
   [REPLACE]  Replaces a label with the given value.
   [SYNC]     A command to update labels synchronously.
 
@@ -664,34 +702,42 @@ EXAMPLES
 
 _See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/delete.ts)_
 
-## `ctv label:get [LABEL]`
+## `ctv label:get [QUERY]`
 
-Display a list of translations for the specified label
+Search translation keys and values across configured languages
 
 ```
 USAGE
-  $ ctv label:get [LABEL] [--json] [-f <value>]
+  $ ctv label:get [QUERY] [--json] [--compact] [--ignore-case] [--language <value>...] [--limit <value>]
+    [--mode exact|prefix|glob|text]
 
 ARGUMENTS
-  [LABEL]  A label key
+  [QUERY]  key or translation text to search for
 
 FLAGS
-  -f, --fromLangCode=<value>  The language code of source text.
+  --compact              show one row per key with language columns
+  --ignore-case          match keys or values without case sensitivity
+  --language=<value>...  language code to search
+  --limit=<value>        maximum number of sorted keys to return
+  --mode=<option>        [default: prefix] search mode
+                         <options: exact|prefix|glob|text>
 
 GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Display a list of translations for the specified label
+  Search translation keys and values across configured languages
 
 EXAMPLES
-  $ ctv label:get
+  $ ctv label:get home.title --mode exact
 
-  $ ctv label:get hello.world
+  $ ctv label:get home --mode prefix --language en --language uk
 
-  $ ctv label:get hello.world -f="en"
+  $ ctv label:get "*.title" --mode glob --ignore-case --json
 
-  $ ctv label:get hello.world -fen
+  $ ctv label:get welcome --mode text --compact
+
+  $ ctv label:get home --mode prefix --limit 10
 ```
 
 _See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/label/get.ts)_
