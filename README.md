@@ -9,6 +9,10 @@ Label management command.
 
 <!-- toc -->
 * [Usage](#usage)
+* [AI engine profiles](#ai-engine-profiles)
+* [PowerShell](#powershell)
+* [bash/zsh](#bashzsh)
+* [Translation workflow](#translation-workflow)
 * [Commands](#commands)
 <!-- tocstop -->
 
@@ -23,6 +27,91 @@ npm install @cli107/transverto --save-dev
 ```shell
 ctv --help
 ```
+
+# AI engine profiles
+
+`ctv translate` uses named AI model profiles. The active profile is selected by
+`engine`; pass `--engine <name>` to use another configured profile for one run.
+Profile names are user-defined, so multiple models or endpoints from the same
+provider can coexist.
+
+```json
+{
+  "engine": "lmstudio",
+  "engines": {
+    "lmstudio": {
+      "provider": "lmstudio",
+      "baseUrl": "http://localhost:1234/v1",
+      "model": "google/gemma-4-12b-qat"
+    },
+    "google-ai": {
+      "provider": "google-ai",
+      "model": "gemini-3.6-flash",
+      "apiKeyEnv": "GEMINI_API_KEY"
+    },
+    "openrouter": {
+      "provider": "openrouter",
+      "model": "openrouter/free",
+      "apiKeyEnv": "OPENROUTER_API_KEY"
+    }
+  }
+}
+```
+
+Supported providers:
+
+- `lmstudio` defaults to `http://localhost:1234/v1` and does not require a key.
+- `google-ai` defaults to Google's OpenAI-compatible Gemini endpoint.
+- `openrouter` defaults to `https://openrouter.ai/api/v1`.
+- `openai-compatible` requires an explicit `baseUrl` and supports any compatible service.
+
+`apiKeyEnv` is an environment-variable name, not a secret. Set the corresponding
+variable before running the CLI:
+
+```shell
+# PowerShell
+$env:GEMINI_API_KEY = "..."
+
+# bash/zsh
+export GEMINI_API_KEY="..."
+```
+
+`ctv init --minimal` creates a label-ready project without inventing an engine
+or model. Configure a local model non-interactively with:
+
+```shell
+ctv init --minimal --engine lmstudio --provider lmstudio \
+  --model google/gemma-4-12b-qat --base-url http://localhost:1234/v1
+```
+
+# Translation workflow
+
+Translate positional text or stdin, or select one or more dictionary keys:
+
+```shell
+ctv translate "Hello" --from en --to uk
+echo "Hello" | ctv translate --stdin --to uk --to de
+ctv translate --key home.title --key home.subtitle --to uk
+```
+
+`--key` is preview-only unless `--write` is supplied. All translations finish
+before target dictionaries are written atomically. `--dry-run` validates the
+profile, languages, dictionaries, and keys without a network request or write.
+`--file` input is intentionally not supported.
+
+JSON output always uses this envelope:
+
+```json
+{
+  "dryRun": false,
+  "requests": [],
+  "results": [],
+  "written": []
+}
+```
+
+The legacy `ctv cache` command does not cache AI translations. The AI-aware
+cache is deferred to task 6 in `PLAN.md`.
 
 # Commands
 <!-- commands -->
@@ -41,6 +130,7 @@ ctv --help
 * [`ctv language:list`](#ctv-languagelist)
 * [`ctv language:remove CODE`](#ctv-languageremove-code)
 * [`ctv language:rename FROM TO`](#ctv-languagerename-from-to)
+* [`ctv translate [TEXT]`](#ctv-translate-text)
 
 ## `ctv cache`
 
@@ -155,16 +245,21 @@ Create a Transverto project configuration
 
 ```
 USAGE
-  $ ctv init [--engine bing|google|terra] [-f] [--languages en,uk,de] [--minimal] [--no-files] [--source
+  $ ctv init [--api-key-env NAME] [--base-url url] [--engine <value>] [-f] [--languages en,uk,de]
+    [--minimal] [--model <value>] [--no-files] [--provider lmstudio|google-ai|openrouter|openai-compatible] [--source
     lang] [--translations-path path] [--types-path path]
 
 FLAGS
   -f, --force                   overwrite existing configuration and language files
-      --engine=<option>         translation engine
-                                <options: bing|google|terra>
+      --api-key-env=NAME        environment variable containing the API key
+      --base-url=url            OpenAI-compatible API base URL
+      --engine=<value>          named engine profile
       --languages=en,uk,de      comma-separated language codes
       --minimal                 create a minimal project without interactive questions
+      --model=<value>           model identifier
       --no-files                do not create language files or project directories
+      --provider=<option>       AI model provider
+                                <options: lmstudio|google-ai|openrouter|openai-compatible>
       --source=lang             source language code
       --translations-path=path  directory for language JSON files
       --types-path=path         path for generated TypeScript types
@@ -177,7 +272,9 @@ EXAMPLES
 
   $ ctv init --minimal
 
-  $ ctv init --languages en,uk,de --source en --engine bing
+  $ ctv init --languages en,uk,de --source en
+
+  $ ctv init --minimal --engine lmstudio --provider lmstudio --model local-model
 
   $ ctv init --minimal --no-files
 
@@ -444,6 +541,47 @@ EXAMPLES
 ```
 
 _See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/language/rename.ts)_
+
+## `ctv translate [TEXT]`
+
+Translate text or configured translation keys with an AI model
+
+```
+USAGE
+  $ ctv translate [TEXT] --to <value>... [--json] [--dry-run] [--engine <value>] [--from <value>] [--key
+    <value>...] [--stdin] [--write]
+
+ARGUMENTS
+  [TEXT]  text to translate
+
+FLAGS
+  --dry-run         validate and show requests without network calls or writes
+  --engine=<value>  named engine profile
+  --from=<value>    source language code
+  --key=<value>...  translation key
+  --stdin           read source text from stdin
+  --to=<value>...   (required) target language code
+  --write           write key translations to target dictionaries
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Translate text or configured translation keys with an AI model
+
+EXAMPLES
+  $ ctv translate "Hello" --from en --to uk
+
+  echo "Hello" | ctv translate --stdin --to uk --to de
+
+  $ ctv translate --key home.title --to uk
+
+  $ ctv translate --key home.title --to uk --write
+
+  $ ctv translate --key home.title --to uk --dry-run --json
+```
+
+_See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/translate.ts)_
 <!-- commandsstop -->
 
 ---
@@ -453,17 +591,21 @@ _See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/
 {
   "basePath": "dist/i18n",
   "basePathEnum": "dist/i18n/language.ts",
-  "bing": {
-    "userAgent": "..."
+  "engine": "lmstudio",
+  "engines": {
+    "lmstudio": {
+      "provider": "lmstudio",
+      "baseUrl": "http://localhost:1234/v1",
+      "model": "google/gemma-4-12b-qat"
+    }
   },
-  "engine": "bing",
-  "engineUseCache": false,
   "labelValidation": "^[a-z0-9\\.\\-\\_]{3,100}$",
+  "langCodeDefault": "en",
   "languages": [
-    "en"
+    "en",
+    "uk"
   ],
-  "nameEnum": "LanguageLabel",
-  "userAgent": "..."
+  "nameEnum": "LanguageLabel"
 }
 ```
 
