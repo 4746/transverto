@@ -16,6 +16,7 @@ Label management command.
 * [Safe synchronization](#safe-synchronization)
 * [Bulk key operations](#bulk-key-operations)
 * [Label search](#label-search)
+* [CSV exchange](#csv-exchange)
 * [Translation status](#translation-status)
 * [Translation cache](#translation-cache)
 * [Commands](#commands)
@@ -318,6 +319,37 @@ When QUERY is omitted in a TTY, the command prompts for it. Non-interactive use
 without QUERY exits 2. Search never writes dictionaries, generated types, or
 configuration, and never calls a translation engine.
 
+# CSV exchange
+
+`ctv export:csv` writes deterministic rows sorted by label. Columns follow
+configuration language order and are emitted once as `<lang>` and
+`<lang>_new`; values use standard CSV quoting for delimiters, quotes, and line
+breaks. Translators can edit only the `*_new` columns and return the same file:
+
+```shell
+ctv export:csv --outputFile translations.csv
+ctv import:csv translations.csv --use-new-columns --dry-run
+ctv import:csv translations.csv --use-new-columns --write
+```
+
+The import validates the `label` column, duplicate headers and labels, column
+mappings, configured languages, dictionary structure, and every conflict before
+writing. Repeat `--map column=language` to import custom column names. When
+`--use-new-columns` is set, automatic mappings use only configured
+`<lang>_new` columns and empty cells are always ignored.
+
+Safe defaults are `--unknown-key conflict`, `--empty skip`, and
+`--existing conflict`. Unknown keys can instead be `skip` or `add`; empty
+regular cells can be `skip`, `clear`, or `conflict`; differing existing
+translations can be `skip`, `overwrite`, or `conflict`. Any conflict blocks
+the complete write. Non-interactive mutation requires `--write`, while
+`--dry-run` returns the exact add/update/skip/conflict plan without changing
+files.
+
+After confirmation, changed dictionaries and generated TypeScript types are
+written in one rollback-capable transaction. The command then runs the same
+read-only status analysis as `ctv status` and includes its severity summary.
+
 # Translation status
 
 `ctv status` compares configured target dictionaries with the source language
@@ -388,6 +420,7 @@ cache file produces an error and is never silently replaced.
 * [`ctv doctor`](#ctv-doctor)
 * [`ctv export:csv [LANGCODE]`](#ctv-exportcsv-langcode)
 * [`ctv help [COMMAND]`](#ctv-help-command)
+* [`ctv import:csv FILE`](#ctv-importcsv-file)
 * [`ctv init`](#ctv-init)
 * [`ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-move-rename-replace-sync)
 * [`ctv label:add [LABEL]`](#ctv-labeladd-label)
@@ -511,7 +544,7 @@ _See code: [src/commands/doctor.ts](https://github.com/4746/transverto/blob/v1.3
 
 ## `ctv export:csv [LANGCODE]`
 
-Export translations to file.
+Export translations to a deterministic CSV file
 
 ```
 USAGE
@@ -521,15 +554,15 @@ ARGUMENTS
   [LANGCODE]  The language code. If not specified, all available translations are exported.
 
 FLAGS
-  -d, --delimiter=<value>   [default: ,] delimiter of columns.
-  -i, --include=<value>     include language code
-  -o, --outputFile=<value>  [default: dist/output.csv] Path to save the file
+  -d, --delimiter=<value>   [default: ,] delimiter of columns
+  -i, --include=<value>     include one additional language code
+  -o, --outputFile=<value>  [default: dist/output.csv] path to save the file
       --eol=<option>        [default: lf]
                             <options: cr|crlf|lf>
-      --withBOM             [default: false] with BOM character
+      --withBOM             write a UTF-8 BOM character
 
 DESCRIPTION
-  Export translations to file.
+  Export translations to a deterministic CSV file
 
 EXAMPLES
   $ ctv export:csv
@@ -566,6 +599,47 @@ DESCRIPTION
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/6.2.56/src/commands/help.ts)_
+
+## `ctv import:csv FILE`
+
+Safely import translations from CSV
+
+```
+USAGE
+  $ ctv import:csv FILE [--json] [-d <value>] [--dry-run] [--empty skip|clear|conflict] [--existing
+    conflict|skip|overwrite] [--map <value>...] [--unknown-key conflict|skip|add] [--use-new-columns] [--write]
+
+ARGUMENTS
+  FILE  CSV file created by export:csv
+
+FLAGS
+  -d, --delimiter=<value>     [default: ,] single CSV delimiter character
+      --dry-run               show the import plan without writing files
+      --empty=<option>        [default: skip] policy for empty regular cells
+                              <options: skip|clear|conflict>
+      --existing=<option>     [default: conflict] policy when an imported value differs from an existing translation
+                              <options: conflict|skip|overwrite>
+      --map=<value>...        map a CSV column to a language as column=language
+      --unknown-key=<option>  [default: conflict] policy for labels absent from the source dictionary
+                              <options: conflict|skip|add>
+      --use-new-columns       auto-map *_new columns and ignore their empty cells
+      --write                 apply the plan without interactive confirmation
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Safely import translations from CSV
+
+EXAMPLES
+  $ ctv import:csv translations.csv --use-new-columns --dry-run
+
+  $ ctv import:csv translations.csv --map translated_uk=uk --write
+
+  $ ctv import:csv translations.csv --existing overwrite --empty clear --write
+```
+
+_See code: [src/commands/import/csv.ts](https://github.com/4746/transverto/blob/v1.3.1/src/commands/import/csv.ts)_
 
 ## `ctv init`
 

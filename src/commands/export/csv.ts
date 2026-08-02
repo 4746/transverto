@@ -1,25 +1,18 @@
-import { Parser } from '@json2csv/plainjs';
+import {Parser} from '@json2csv/plainjs'
 import {Args, Flags} from '@oclif/core'
-import chalk from "chalk";
-import fs from "node:fs";
-import path from "node:path";
+import path from 'node:path'
 
-import {ITranslation} from "../../shared/entities/translate.js";
-import {LabelBaseCommand} from "../../shared/label-base.command.js";
-import {ELineSeparator, LINE_SEPARATOR_LOWER} from "../../shared/line-separator.js";
-import {UTIL} from "../../shared/util.js";
+import {writeFileAtomic} from '../../shared/atomic-file.js'
+import {LabelBaseCommand} from '../../shared/label-base.command.js'
+import {LabelMutationRepository} from '../../shared/label-mutation.repository.js'
+import {ELineSeparator, LINE_SEPARATOR_LOWER} from '../../shared/line-separator.js'
 
-/**
- * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev export:csv
- * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev export:csv en --include=uk
- */
 export default class ExportCsv extends LabelBaseCommand<typeof ExportCsv> {
   static args = {
     langCode: Args.string({description: 'The language code. If not specified, all available translations are exported.', required: false}),
   }
 
-  static description = 'Export translations to file.'
-
+  static description = 'Export translations to a deterministic CSV file'
   static examples = [
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> en',
@@ -30,106 +23,60 @@ export default class ExportCsv extends LabelBaseCommand<typeof ExportCsv> {
   ]
 
   static flags = {
-    delimiter: Flags.string({char: 'd', default: ',', description: 'delimiter of columns.'}),
-    eol: Flags.string({
-      default: 'lf',
-      multiple: false,
-      options: LINE_SEPARATOR_LOWER,
-      requiredOrDefaulted: true,
-    }),
-    include: Flags.string({char: 'i', default: null, description: 'include language code', multiple: false, requiredOrDefaulted: true}),
-    outputFile: Flags.string({char: 'o', default: 'dist/output.csv', description: 'Path to save the file'}),
-    withBOM: Flags.boolean({description: '[default: false] with BOM character'}),
+    delimiter: Flags.string({char: 'd', default: ',', description: 'delimiter of columns'}),
+    eol: Flags.string({default: 'lf', options: LINE_SEPARATOR_LOWER}),
+    include: Flags.string({char: 'i', description: 'include one additional language code'}),
+    outputFile: Flags.string({char: 'o', default: 'dist/output.csv', description: 'path to save the file'}),
+    withBOM: Flags.boolean({description: 'write a UTF-8 BOM character'}),
   }
-
-  private csvFields = [
-    {
-      label: 'label',
-      value: 'label'
-    },
-  ];
-
-  private data: Record<string, Record<string, string>> = {};
 
   public async run(): Promise<void> {
     const {args, flags} = await this.parse(ExportCsv)
 
-    await this.readCliConfig();
-
-    let langCode: string;
-    let includeLangCode: string;
-
-    if (args.langCode) {
-      langCode = await this.getLangCode(this.cliConfig.languages, args.langCode);
-
-      if (flags.include && this.cliConfig.languages.includes(flags.include)) {
-        includeLangCode = flags.include;
-      }
-    }
-
-    const mapTranslation =  await this.getTranslationLanguages();
-
-    if (args.langCode) {
-      this.langRows(mapTranslation[langCode]);
-
-      if (includeLangCode && includeLangCode !== langCode) {
-        this.langRows(mapTranslation[includeLangCode]);
-      }
-    } else {
-      for (langCode in mapTranslation) {
-        this.langRows(mapTranslation[langCode]);
-      }
-    }
-
-    const parser = new Parser({
-      delimiter : flags.delimiter,
-      eol: flags.eol ? ELineSeparator[flags.eol?.toUpperCase()] : ELineSeparator.LF,
-      fields: this.csvFields,
-      withBOM: flags.withBOM
-    });
-
-    const csv = parser.parse(Object.values(this.data));
-
-    await fs.promises.writeFile(path.resolve(flags.outputFile), csv, {encoding: 'utf8', flag: 'w'});
-
-    this.log(chalk.green(`File saved: ${path.resolve(flags.outputFile)}`));
-    this.log(chalk.cyan(`Done!`));
-  }
-
-  private langRows(mapLang: ITranslation) {
-    let label: string;
-    let value: string | string[];
-
-    for (label in mapLang.translateFlatten) {
-      value = mapLang.translateFlatten[label];
-
-      if (Array.isArray(value)) {
-        value = value.join('🏁');
-      } else if (!UTIL.isString(value)) {
-        value = '';
+    try {
+      if (flags.delimiter.length !== 1 || flags.delimiter === '"' || /[\r\n]/.test(flags.delimiter)) {
+        throw new Error('CSV delimiter must be one character other than a quote or line break.')
       }
 
-      if (label in this.data) {
-        this.data[label][mapLang.code] = value;
-        this.data[label][`${mapLang.code}_new`] = '';
-      } else {
-        this.data[label] = {
-          [`${mapLang.code}_new`]: '',
-          label,
-          [mapLang.code]: value
+      await this.readCliConfig()
+      const requested = [args.langCode, flags.include].filter((value): value is string => value !== undefined)
+      for (const language of requested) {
+        if (!this.cliConfig.languages.includes(language)) throw new Error('Language "' + language + '" is not configured.')
+      }
+
+      const selectedSet = new Set(requested)
+      const selected = requested.length === 0
+        ? this.cliConfig.languages
+        : this.cliConfig.languages.filter(language => selectedSet.has(language))
+      const snapshot = await LabelMutationRepository.load(this.cliConfig, {languages: selected})
+      const labels = [...new Set(snapshot.dictionaries.flatMap(dictionary => [...dictionary.flat.keys()]))].sort()
+      const rows = labels.map(label => {
+        const row: Record<string, string> = {label}
+        for (const dictionary of snapshot.dictionaries) {
+          row[dictionary.code] = dictionary.flat.get(label) ?? ''
+          row[dictionary.code + '_new'] = ''
         }
-      }
-    }
 
-    this.csvFields.push(
-      {
-        label: mapLang.code,
-        value: mapLang.code,
-      },
-      {
-        label: `${mapLang.code}_new`,
-        value: `${mapLang.code}_new`,
-      }
-    );
+        return row
+      })
+      const fields = [
+        {label: 'label', value: 'label'},
+        ...snapshot.dictionaries.flatMap(dictionary => [
+          {label: dictionary.code, value: dictionary.code},
+          {label: dictionary.code + '_new', value: dictionary.code + '_new'},
+        ]),
+      ]
+      const parser = new Parser({
+        delimiter: flags.delimiter,
+        eol: ELineSeparator[flags.eol.toUpperCase()],
+        fields,
+        withBOM: flags.withBOM,
+      })
+      const outputFile = path.resolve(flags.outputFile)
+      await writeFileAtomic(outputFile, parser.parse(rows))
+      this.log('File saved: ' + outputFile)
+    } catch (error) {
+      this.error(error instanceof Error ? error.message : String(error), {exit: 2})
+    }
   }
 }
