@@ -14,6 +14,7 @@ import {
   TStatusProblem,
   TStatusSeverity,
 } from './entities/status.js'
+import {matchesKeyFilters, normalizeKeyPatterns} from './key-pattern.js'
 import {comparePlaceholders} from './placeholder.js'
 
 type TDictionary = Record<string, unknown>
@@ -118,25 +119,6 @@ const loadConfig = async (cwd: string): Promise<IStatusProjectConfig> => {
     langCodeDefault: parsed.langCodeDefault,
     languages: parsed.languages as string[],
   }
-}
-
-const validatePattern = (pattern: string): void => {
-  if (!pattern) throw new Error('Status key patterns must not be empty.')
-
-  const firstStar = pattern.indexOf('*')
-  if (firstStar === -1) return
-  if (firstStar !== pattern.lastIndexOf('*') || (firstStar !== 0 && firstStar !== pattern.length - 1)) {
-    throw new Error(
-      `Invalid status key pattern "${pattern}". Use an exact key or one wildcard at the beginning or end.`,
-    )
-  }
-}
-
-const matchesPattern = (key: string, pattern: string): boolean => {
-  if (pattern === '*') return true
-  if (pattern.startsWith('*')) return key.endsWith(pattern.slice(1))
-  if (pattern.endsWith('*')) return key.startsWith(pattern.slice(0, -1))
-  return key === pattern
 }
 
 type TFindingInput = Omit<IStatusFinding, 'severity'>
@@ -279,9 +261,7 @@ const normalizeOptions = (
     }
   }
 
-  const include = unique(options.include ?? [])
-  const exclude = unique(options.exclude ?? [])
-  for (const pattern of [...include, ...exclude]) validatePattern(pattern)
+  const {exclude, include} = normalizeKeyPatterns(options.include, options.exclude)
 
   return {exclude, failOn, include, languages, problems}
 }
@@ -313,8 +293,7 @@ export const StatusService = {
     const languageOrder = new Map(languages.map((language, index) => [language, index]))
     const filtered = findings
       .filter(item => problems === undefined || problems.includes(item.problem))
-      .filter(item => include.length === 0 || include.some(pattern => matchesPattern(item.key, pattern)))
-      .filter(item => !exclude.some(pattern => matchesPattern(item.key, pattern)))
+      .filter(item => matchesKeyFilters(item.key, {exclude, include}))
       .sort((left, right) => {
         const languageDifference = (languageOrder.get(left.language) ?? 0) - (languageOrder.get(right.language) ?? 0)
         if (languageDifference !== 0) return languageDifference
