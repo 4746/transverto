@@ -17,7 +17,7 @@ import {
   readJson,
   runCli,
   writeText,
-} from './helpers/project-fixture.mjs'
+} from '../helpers/project-fixture.mjs'
 
 const dictionaries = () => ({
   de: {

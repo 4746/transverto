@@ -17,7 +17,7 @@ export const createConfig = ({
   engine = null,
   engines = {},
   fallback = null,
-  languages = ['en', 'uk'],
+  languages = ['en', 'uk', 'de'],
   source = 'en',
   ...overrides
 } = {}) => ({
