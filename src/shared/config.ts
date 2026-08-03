@@ -40,11 +40,11 @@ export const CONFIG_DEFAULT: IConfig & {batch: ITranslationBatchConfig} = {
   /**
    * The base path where is your translation json files
    */
-  basePath: "dist/i18n",
+  basePath: "public/i18n",
   /**
    * The base path for language assets.
    */
-  basePathEnum: 'dist/i18n/language.ts',
+  basePathEnum: 'src/app/shared/i18n/language.enum.ts',
   batch: {...TRANSLATION_BATCH_DEFAULTS},
   cache: {
     maxEntries: 1000,
@@ -65,5 +65,5 @@ export const CONFIG_DEFAULT: IConfig & {batch: ITranslationBatchConfig} = {
    * List languages for cli.
    */
   languages: [LANG_CODE_DEFAULT],
-  nameEnum: "LanguageLabel",
+  nameEnum: "ELanguageLabel",
 }
