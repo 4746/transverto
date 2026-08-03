@@ -62,7 +62,7 @@ provider can coexist.
     "google-ai": {
       "provider": "google-ai",
       "model": "gemini-3.6-flash",
-      "apiKeyEnv": "GEMINI_API_KEY"
+      "apiKeyEnv": "CTV_GOOGLE_AI_API_KEY"
     },
     "openrouter": {
       "provider": "openrouter",
@@ -89,10 +89,10 @@ variable before running the CLI:
 
 ```shell
 # PowerShell
-$env:GEMINI_API_KEY = "..."
+$env:CTV_GOOGLE_AI_API_KEY = "..."
 
 # bash/zsh
-export GEMINI_API_KEY="..."
+export CTV_GOOGLE_AI_API_KEY="..."
 ```
 
 `ctv init --minimal` creates a label-ready project without inventing an engine
