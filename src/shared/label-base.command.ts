@@ -165,6 +165,7 @@ export abstract class LabelBaseCommand<T extends typeof Command> extends Command
       '',
       `export type T${nameEnum}OrString  = T${nameEnum} | string;`,
       `export type T${nameEnum}OrNever  = T${nameEnum} | never;`,
+      `export type T${nameEnum}Key = (typeof E${nameEnum})[keyof typeof E${nameEnum}];`,
       ''
     );
 

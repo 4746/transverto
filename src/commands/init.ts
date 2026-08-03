@@ -99,7 +99,7 @@ const resolveInteractiveEngine = async (
 
   if (ENGINE_PROVIDER_DEFAULTS[provider].requiresApiKey && !apiKeyEnv) {
     apiKeyEnv = await input({
-      default: provider === 'google-ai' ? 'GEMINI_API_KEY' : 'OPENROUTER_API_KEY',
+      default: provider === 'google-ai' ? 'CTV_GOOGLE_AI_API_KEY' : 'CTV_OPENROUTER_API_KEY',
       message: 'API key environment variable:',
     })
   }

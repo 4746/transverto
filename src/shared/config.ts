@@ -5,7 +5,7 @@ import {IEngineProfile} from "./entities/translation.engine.js";
 import {TRANSLATION_BATCH_DEFAULTS} from './translation-batch.config.js'
 
 export const LANG_CODE_DEFAULT = 'en';
-export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\-\\_]{3,100}$';
+export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\_]{2,100}$';
 
 export interface IConfig {
   /**
@@ -40,11 +40,11 @@ export const CONFIG_DEFAULT: IConfig & {batch: ITranslationBatchConfig} = {
   /**
    * The base path where is your translation json files
    */
-  basePath: "dist/i18n",
+  basePath: "public/i18n",
   /**
    * The base path for language assets.
    */
-  basePathEnum: 'dist/i18n/language.ts',
+  basePathEnum: 'src/app/shared/i18n/language.enum.ts',
   batch: {...TRANSLATION_BATCH_DEFAULTS},
   cache: {
     maxEntries: 1000,

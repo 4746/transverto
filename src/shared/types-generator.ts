@@ -49,6 +49,7 @@ export function generateTypesContent(config: IConfig, sourceDictionary: TDiction
     '',
     `export type T${enumName}OrString = T${enumName} | string;`,
     `export type T${enumName}OrNever = T${enumName} | never;`,
+    `export type T${enumName}Key = (typeof E${enumName})[keyof typeof E${enumName}];`,
     '',
   ].join('\n')
 }
