@@ -120,7 +120,7 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
 
     await Helper.writeOrCreateJsonFile(dataJson, i18nPath);
 
-    const param = [`--silent`, `--noReport`];
+    const param = [`--write`];
 
     if (!this.noAutoTranslate) {
       param.push(`--auto-translate`)

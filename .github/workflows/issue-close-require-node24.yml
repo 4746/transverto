@@ -1,0 +1,86 @@
+name: Issue Close Require
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  issue-close-require:
+    permissions:
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Close inactive issues and pull requests
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const inactiveDays = 3;
+            const cutoff = Date.now() - inactiveDays * 24 * 60 * 60 * 1000;
+            const { owner, repo } = context.repo;
+
+            const rules = [
+              {
+                label: '🤔 Need Reproduce',
+                body: null,
+              },
+              {
+                label: 'needs-more-info',
+                body: [
+                  'Since the issue was labeled with `needs-more-info`, but no response in 3 days.',
+                  'This issue will be closed. If you have any questions, you can comment and reply.',
+                ].join(' '),
+              },
+            ];
+
+            for (const rule of rules) {
+              const items = await github.paginate(
+                github.rest.issues.listForRepo,
+                {
+                  owner,
+                  repo,
+                  state: 'open',
+                  labels: rule.label,
+                  per_page: 100,
+                },
+              );
+
+              for (const item of items) {
+                const updatedAt = new Date(item.updated_at).getTime();
+
+                if (updatedAt > cutoff) {
+                  continue;
+                }
+
+                if (rule.body) {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: item.number,
+                    body: rule.body,
+                  });
+                }
+
+                if (item.pull_request) {
+                  await github.rest.pulls.update({
+                    owner,
+                    repo,
+                    pull_number: item.number,
+                    state: 'closed',
+                  });
+                } else {
+                  await github.rest.issues.update({
+                    owner,
+                    repo,
+                    issue_number: item.number,
+                    state: 'closed',
+                  });
+                }
+
+                core.info(`Closed #${item.number} with label "${rule.label}".`);
+              }
+            }

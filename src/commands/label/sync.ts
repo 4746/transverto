@@ -1,257 +1,241 @@
-import {Flags, ux} from '@oclif/core'
-import chalk from "chalk";
-import {Listr} from 'listr2';
+import type {CommandError, OclifError} from '@oclif/core/interfaces'
 
-import {TranslateEngine} from "../../shared/engines/translate.engine.js";
-import {ISyncRowReport} from "../../shared/entities/report.js";
-import {TTranslation} from "../../shared/entities/translate.js";
-import {Helper} from "../../shared/helper.js";
-import {LabelBaseCommand} from "../../shared/label-base.command.js";
-import {UTIL} from "../../shared/util.js";
+import {confirm} from '@inquirer/prompts'
+import {Flags} from '@oclif/core'
+import path from 'node:path'
 
-/**
- * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:sync
- * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:sync --help
- * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:sync --auto-translate
- */
+import type {ISyncPlan, ISyncProjectSnapshot, ISyncReport, TSyncExtraPolicy} from '../../shared/entities/sync.js'
+import type {ITranslationBatchOutput} from '../../shared/entities/translation-batch.js'
+
+import {CTV_TRANSLATION_CACHE_FILE} from '../../shared/constants.js'
+import {
+  resolveEngineProfile,
+  validateEngineConfiguration,
+  validateFallbackConfiguration,
+} from '../../shared/engine-profile.js'
+import {SYNC_EXTRA_POLICIES} from '../../shared/entities/sync.js'
+import {LabelBaseCommand} from '../../shared/label-base.command.js'
+import {SyncExecutor} from '../../shared/sync-executor.js'
+import {SyncPlanner, syncTranslationRequests} from '../../shared/sync-planner.js'
+import {buildSyncReport, formatSyncReport} from '../../shared/sync-report.js'
+import {SyncRepository} from '../../shared/sync.repository.js'
+import {resolveTranslationBatchConfig} from '../../shared/translation-batch.config.js'
+import {TranslationBatchService} from '../../shared/translation-batch.service.js'
+import {TranslationService} from '../../shared/translation.service.js'
+
+interface ISyncEngineFlags {
+  engine?: string
+  fallback?: string
+  noFallback: boolean
+}
+
 export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
-  static description = 'Synchronizing tags in translation files...'
+  static description = 'Safely synchronize configured translation dictionaries'
+
+  static enableJsonFlag = true
 
   static examples = [
-    '<%= config.bin %> <%= command.id %>',
-    `<%= config.bin %> <%= command.id %> "hello.world" -f="en"`,
+    '<%= config.bin %> <%= command.id %> --dry-run',
+    '<%= config.bin %> <%= command.id %> --source en --to uk --to de --dry-run --json',
+    '<%= config.bin %> <%= command.id %> --include "home.*" --extra remove --write',
+    '<%= config.bin %> <%= command.id %> --auto-translate --engine lmstudio --write',
+    '<%= config.bin %> <%= command.id %> --auto-translate --no-fallback --dry-run',
   ]
 
   static flags = {
-    autoTranslate: Flags.boolean({aliases: ['auto-translate'], default: false}),
-    noReport: Flags.boolean({aliases: ['no-report'], char: 'r', default: false}),
-    silent: Flags.boolean({char: 's', default: false}),
+    'auto-translate': Flags.boolean({
+      default: false,
+      description: 'translate missing values through the configured batch pipeline',
+    }),
+    'dry-run': Flags.boolean({
+      default: false,
+      description: 'show the immutable plan without network calls or writes',
+    }),
+    engine: Flags.string({description: 'named engine profile for auto-translation'}),
+    exclude: Flags.string({
+      description: 'exclude exact or edge-wildcard key pattern',
+      multiple: true,
+    }),
+    extra: Flags.string({
+      default: 'report',
+      description: 'policy for target keys absent from the source',
+      options: [...SYNC_EXTRA_POLICIES],
+    }),
+    fallback: Flags.string({
+      description: 'single fallback engine profile for auto-translation',
+      exclusive: ['no-fallback'],
+    }),
+    include: Flags.string({
+      description: 'include exact or edge-wildcard key pattern',
+      multiple: true,
+    }),
+    'no-fallback': Flags.boolean({
+      default: false,
+      description: 'disable configured fallback for auto-translation',
+    }),
+    source: Flags.string({description: 'source language code'}),
+    to: Flags.string({description: 'target language code', multiple: true}),
+    write: Flags.boolean({
+      default: false,
+      description: 'apply the plan without interactive confirmation',
+    }),
   }
 
-  private autoTranslate: boolean;
+  protected async catch(error: CommandError): Promise<void> {
+    const jsonExit = (error as CommandError & Partial<OclifError>).oclif?.exit
+    await super.catch(error)
+    if (jsonExit !== undefined) process.exitCode = jsonExit
+  }
 
-  private langCodePriority: Record<string, number>;
-  private noReport: boolean;
-
-  private repostRows: ISyncRowReport[] = [];
-  private repostTableHeader: ISyncRowReport = {
-    label: 'Label',
-  };
-
-  private silent: boolean;
-  private translateEngine: TranslateEngine;
-
-  public async run(): Promise<void> {
+  public async run(): Promise<ISyncReport | void> {
     const {flags} = await this.parse(LabelSync)
+    let batch: ITranslationBatchOutput | null = null
+    let plan: ISyncPlan
+    let snapshot: ISyncProjectSnapshot
 
-    this.noReport = flags.noReport;
-    this.silent = flags.silent;
-
-    this.autoTranslate = flags.autoTranslate;
-
-    const tasks = new Listr<CtxTasks>([
-      {
-        task: async () => this.taskReadConfiguration(),
-        title: 'Configuration settings',
-      },
-      {
-        task: async (ctx) => this.taskReadLanguageFiles(ctx),
-        title: 'Read language files',
-      },
-      {
-        // skip: ctx => ctx.isSynchronized,
-        task: async (ctx) => this.taskLabelAreSynchronized(ctx),
-        title: 'Labels are synchronized',
-      },
-      {
-        // skip: ctx => ctx.isSynchronized,
-        task: async (ctx) => this.taskCreateTranslationEnum(ctx),
-        title: 'Create translation Enum',
-      }
-    ], {
-      concurrent: false,
-      exitOnError: true,
-      silentRendererCondition: this.silent
-    });
-
-    // tasks.add([])
-
-    tasks.run()
-      .then(() => {
-        this.showReport();
-
-        if (!this.silent) {
-          this.log(chalk.cyan(`Done!`))
-        }
-      });
-  }
-
-  /**
-   * Adds a report row to the report table.
-   */
-  private addReportRow(row: Record<string, string>) {
-    const fill = {...this.repostTableHeader};
-    Object.keys(fill).forEach(key => {
-      fill[key] = '';
-    });
-
-    this.repostRows.push({
-      ...fill,
-      ...row,
-    })
-  }
-
-  private createLangCodePriority(languages: string[]): Record<string, number> {
-    const langCodePriority: [string, number][] = languages.map((code, idx) => {
-      this.repostTableHeader[code] = '';
-      return [code, idx];
-    });
-
-    return Object.fromEntries(
-      (new Map(langCodePriority)).entries()
-    );
-  }
-
-  private async flattenAddMissingKeys(sourceLangCode: string, targetLangCode: string, targetTranslate: Record<string, string|string[]>, sourceTranslate: Record<string, string|string[]>) {
-    const added: Set<string> = new Set();
-    for (const label in sourceTranslate) {
-      if (label in targetTranslate) {
-        continue;
-      }
-
-      added.add(label);
-
-      targetTranslate[label] = await this.translateText(sourceTranslate[label], sourceLangCode, targetLangCode);
-
-      this.addReportRow({
-        label: label,
-        [sourceLangCode]: '*',
-        [targetLangCode]: '+'
+    try {
+      await this.readCliConfig()
+      this.validateFlags({
+        autoTranslate: flags['auto-translate'],
+        dryRun: flags['dry-run'],
+        engine: flags.engine,
+        fallback: flags.fallback,
+        noFallback: flags['no-fallback'],
+        write: flags.write,
       })
-    }
+      const batchConfig = resolveTranslationBatchConfig(this.cliConfig.batch)
+      snapshot = await SyncRepository.load(this.cliConfig, {
+        source: flags.source,
+        targets: flags.to,
+      })
+      plan = SyncPlanner.create(snapshot, {
+        autoTranslate: flags['auto-translate'],
+        exclude: flags.exclude,
+        extra: flags.extra as TSyncExtraPolicy,
+        include: flags.include,
+      })
 
-    return added;
-  }
-
-  private showReport() {
-    if (this.noReport) {
-      return;
-    }
-
-    if (this.repostRows.length === 0) {
-      return;
-    }
-
-    const mapRows: Map<string, ISyncRowReport> = new Map();
-    /**
-     * group label repeats
-     */
-    this.repostRows.forEach((row) => {
-      if (mapRows.has(row.label)) {
-        Object.keys(row).forEach(key => {
-          if (['', '*'].includes(row[key])) {
-            delete row[key];
-          }
-        });
-
-        mapRows.set(row.label, {...mapRows.get(row.label), ...row});
-      } else {
-        mapRows.set(row.label, row);
-      }
-    });
-
-    const columnLangCode = this.cliConfig.languages.reduce((acc, code) => {
-      acc[code] = {
-        get: (row) => {
-          if (row[code] === '*') {
-            return chalk.green(row[code])
-          }
-
-          return chalk.red(row[code]);
-        },
-        header: code,
-        minWidth: 7,
-      }
-      return acc;
-    }, {})
-
-    ux.table<Partial<ISyncRowReport>>([...mapRows.values()].map((v, k) => ({
-      ...v, id: (k + 1).toString(),
-    })), {
-      id: {
-        header: '#',
-        minWidth: 7,
-      },
-      ...columnLangCode,
-      label: {
-        get: (row) => {
-          return chalk.cyan(row.label);
-        },
-        header: 'Label',
-        minWidth: 20,
-      }
-    }, {
-      'no-truncate': true
-    })
-  }
-
-  private async taskCreateTranslationEnum(ctx: CtxTasks) {
-    const lc = Object.keys(ctx.mapLang)[0];
-
-    await this.makeTranslationEnum(ctx.mapLang[lc])
-  }
-
-  private async taskLabelAreSynchronized(ctx: CtxTasks) {
-    for (const currentLang in ctx.mapLang) {
-      const restLanguages = [...this.cliConfig.languages];
-
-      restLanguages.splice(restLanguages.indexOf(currentLang), 1);
-      restLanguages.sort((a, b) => {
-        return this.langCodePriority[a] - this.langCodePriority[b];
-      });
-
-      for (const sourceLang of restLanguages) {
-        const added: Set<string> = await this.flattenAddMissingKeys(
-          sourceLang,
-          currentLang,
-          ctx.mapLang[currentLang].translateFlatten,
-          ctx.mapLang[sourceLang].translateFlatten
-        );
-
-        added.forEach((label) => {
-          UTIL.setNestedValue(ctx.mapLang[currentLang].translate, label, ctx.mapLang[currentLang].translateFlatten[label])
+      if (flags['auto-translate']) {
+        this.validateEngineConfiguration({
+          engine: flags.engine,
+          fallback: flags.fallback,
+          noFallback: flags['no-fallback'],
         })
+        const requests = syncTranslationRequests(plan)
+        if (flags['dry-run']) {
+          const unreachableExecutor = {
+            translate: () => Promise.reject(new Error('Dry-run executor must not be called.')),
+          }
+          batch = await new TranslationBatchService(unreachableExecutor).execute(requests, {
+            config: batchConfig,
+            dryRun: true,
+          })
+        } else {
+          const translationService = TranslationService.fromConfig(
+            this.cliConfig,
+            {
+              cacheFile: path.join(this.config.cacheDir, CTV_TRANSLATION_CACHE_FILE),
+              ...(flags['no-fallback']
+                ? {fallback: null}
+                : flags.fallback === undefined ? {} : {fallback: flags.fallback}),
+              selectedEngine: flags.engine,
+            },
+          )
+          batch = await new TranslationBatchService(translationService).execute(requests, {
+            config: batchConfig,
+            dryRun: false,
+          })
+        }
       }
-
-      await Helper.writeOrCreateJsonFile(UTIL.sortObjByKey(ctx.mapLang[currentLang].translate), ctx.mapLang[currentLang].file);
-    }
-  }
-
-  private async taskReadConfiguration() {
-    await this.readCliConfig();
-
-    this.translateEngine = new TranslateEngine({...this.cliConfig}, this.config.cacheDir);
-
-    this.langCodePriority = this.createLangCodePriority([...this.cliConfig.languages]);
-  }
-
-  private async taskReadLanguageFiles(ctx: CtxTasks) {
-    ctx.mapLang =  await this.getTranslationLanguages();
-  }
-
-  private async translateText(text: string | string[], sourceLangCode: string, targetLangCode: string) {
-    if (this.autoTranslate && !Array.isArray(text)) {
-      return this.translateEngine.translateText({
-        from: sourceLangCode,
-        text,
-        to: targetLangCode
-      });
+    } catch (error) {
+      this.error(this.errorMessage(error), {exit: 2})
     }
 
-    return text;
-  }
-}
+    let confirmed = flags.write
+    let previewRendered = false
+    let written: string[] = []
+    const hasStructuralConflict = plan.actions.some(action => action.type === 'conflict')
 
-interface CtxTasks {
-  mapLang: TTranslation;
+    if (!flags['dry-run'] && !flags.write && !hasStructuralConflict) {
+      const preview = buildSyncReport({
+        batch,
+        confirmed: false,
+        dryRun: false,
+        plan,
+        writeRequested: false,
+      })
+      this.printHumanReport(preview)
+      previewRendered = true
+      confirmed = await confirm(
+        {default: false, message: 'Apply this synchronization plan?'},
+        {output: process.stdout},
+      )
+    }
+
+    if (!flags['dry-run'] && confirmed && !hasStructuralConflict) {
+      try {
+        written = await SyncExecutor.apply({batch, plan, snapshot})
+      } catch (error) {
+        this.error(this.errorMessage(error), {exit: 2})
+      }
+    }
+
+    const report = buildSyncReport({
+      batch,
+      confirmed,
+      dryRun: flags['dry-run'],
+      plan,
+      writeRequested: flags.write,
+      written,
+    })
+    if (report.exitCode === 1) process.exitCode = 1
+
+    if (this.jsonEnabled()) return report
+    if (!previewRendered) this.printHumanReport(report)
+    else if (written.length > 0) this.log(`Written: ${written.join(', ')}`)
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error)
+  }
+
+  private printHumanReport(report: ISyncReport): void {
+    for (const line of formatSyncReport(report)) this.log(line)
+  }
+
+  private validateEngineConfiguration(flags: ISyncEngineFlags): void {
+    const primary = resolveEngineProfile(
+      this.cliConfig,
+      flags.engine,
+      process.env,
+      {requireCredentials: false},
+    )
+    const engines = validateEngineConfiguration(this.cliConfig.engine, this.cliConfig.engines)
+    const fallback = flags.noFallback
+      ? null
+      : flags.fallback === undefined ? this.cliConfig.fallback : flags.fallback
+    validateFallbackConfiguration(fallback, engines, primary.name)
+  }
+
+  private validateFlags(flags: {
+    autoTranslate: boolean
+    dryRun: boolean
+    engine?: string
+    fallback?: string
+    noFallback: boolean
+    write: boolean
+  }): void {
+    if (flags.dryRun && flags.write) throw new Error('--dry-run cannot be combined with --write.')
+    if (!flags.autoTranslate && (flags.engine || flags.fallback || flags.noFallback)) {
+      throw new Error('--engine, --fallback, and --no-fallback require --auto-translate.')
+    }
+
+    if (!flags.dryRun && !flags.write && (
+      this.jsonEnabled() ||
+      !process.stdin.isTTY ||
+      !process.stdout.isTTY
+    )) {
+      throw new Error('Non-interactive synchronization requires --write or --dry-run.')
+    }
+  }
 }
