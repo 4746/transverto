@@ -67,7 +67,7 @@ provider can coexist.
     "openrouter": {
       "provider": "openrouter",
       "model": "openrouter/free",
-      "apiKeyEnv": "OPENROUTER_API_KEY"
+      "apiKeyEnv": "CTV_OPENROUTER_API_KEY"
     }
   }
 }
