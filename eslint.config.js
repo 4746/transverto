@@ -22,6 +22,7 @@ export default [
       'guard-for-in': 'off',
       'jsdoc/check-tag-names': 'off',
       'jsdoc/check-types': 'off',
+      "max-params": ["warn", {max: 7}],
       'no-await-in-loop': 'off',
       'no-else-return': 'off',
       'object-shorthand': 'off',
@@ -46,6 +47,7 @@ export default [
   {
     files: ['test/**/*.mjs'],
     rules: {
+      "max-params": ["warn", {max: 7}],
       'mocha/consistent-spacing-between-blocks': 'off',
       'mocha/handle-done-callback': 'off',
       'mocha/max-top-level-suites': 'off',

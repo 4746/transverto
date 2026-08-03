@@ -1,3 +1,4 @@
+/* eslint complexity: ["warn", 35] */
 import fs from 'node:fs'
 import path from 'node:path'
 
