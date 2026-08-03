@@ -65,5 +65,5 @@ export const CONFIG_DEFAULT: IConfig & {batch: ITranslationBatchConfig} = {
    * List languages for cli.
    */
   languages: [LANG_CODE_DEFAULT],
-  nameEnum: "ELanguageLabel",
+  nameEnum: "LanguageLabel",
 }
