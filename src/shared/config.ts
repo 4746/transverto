@@ -5,7 +5,7 @@ import {IEngineProfile} from "./entities/translation.engine.js";
 import {TRANSLATION_BATCH_DEFAULTS} from './translation-batch.config.js'
 
 export const LANG_CODE_DEFAULT = 'en';
-export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\-\\_]{3,100}$';
+export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\_]{2,100}$';
 
 export interface IConfig {
   /**
