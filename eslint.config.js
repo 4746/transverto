@@ -44,7 +44,7 @@ export default [
     },
   },
   {
-    files: ['test/e2e/**/*.mjs'],
+    files: ['test/**/*.mjs'],
     rules: {
       'mocha/consistent-spacing-between-blocks': 'off',
       'mocha/handle-done-callback': 'off',
@@ -59,6 +59,7 @@ export default [
       'mocha/no-sibling-hooks': 'off',
       'mocha/no-skipped-tests': 'off',
       'mocha/no-top-level-hooks': 'off',
+      'no-await-in-loop': 'off',
     },
   },
 ]
