@@ -24,11 +24,21 @@ interface IChatCompletionResponse {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const buildSystemPrompt = ({from, to}: ITranslationRequestPlan): string => [
-  'You are a professional translation engine.',
-  `Translate the user text from ${from} to ${to}.`,
-  'Return only the translated text without explanations, labels, quotes, or Markdown fences.',
-  'Preserve placeholders, punctuation, paragraph structure, and formatting.',
+const buildSystemPrompt = ({from, to, key, sourceText}: ITranslationRequestPlan): string => [
+  'You are a professional localization engine for web user interfaces.',
+  'All source texts are elements of websites or web applications, such as buttons, labels, form fields, menus, headings, tooltips, notifications, and validation messages.',
+  ``,
+  `Source language: ${from}`,
+  `Target language: ${to}`,
+  `Localization key: ${key}`,
+  `Source text: ${sourceText}`,
+  ``,
+  `Translate only the source text from the source language to the target language.`,
+  `Use the localization key only as context to determine the meaning and role of the source text in the web interface. Do not translate or return the localization key.`,
+  `Use concise, natural, and conventional terminology used in web interfaces in the target language.`,
+  `For buttons, links, menu items, and other actions, use the grammatical form conventionally displayed for that type of interface element in the target language. Do not mechanically preserve the grammatical form or mood of the source text.`,
+  `Preserve placeholders, HTML tags, template expressions, punctuation, capitalization, whitespace, paragraph structure, and formatting.`,
+  `Return only the translated source text without explanations, labels, metadata, quotes, JSON, or Markdown.`,
 ].join(' ')
 
 const providerMessage = (body: unknown): string | undefined => {
