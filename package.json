@@ -1,6 +1,10 @@
 {
   "name": "@cli107/transverto",
   "description": "Generate automatically translations for your i18n json translate files",
+  "homepage": "https://github.com/4746/transverto",
+  "bugs": "https://github.com/4746/transverto/issues",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
   "keywords": [
     "transverto",
     "translate",
@@ -11,10 +15,6 @@
     "translator"
   ],
   "author": "Vadim",
-  "license": "MIT",
-  "version": "1.3.1",
-  "bugs": "https://github.com/4746/transverto/issues",
-  "homepage": "https://github.com/4746/transverto",
   "repository": "4746/transverto",
   "types": "dist/index.d.ts",
   "exports": "./dist/index.js",

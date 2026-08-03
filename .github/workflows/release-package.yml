@@ -2,33 +2,55 @@ name: "Publish NPM Package"
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          cache: npm
 
-      - name: Show versions
+      - name: Validate package version
+        shell: bash
         run: |
-          node --version
-          npm --version
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          RELEASE_VERSION="${{ github.event.release.tag_name }}"
+          RELEASE_VERSION="${RELEASE_VERSION#v}"
+
+          echo "package.json version: $PACKAGE_VERSION"
+          echo "GitHub tag version: $RELEASE_VERSION"
+
+          if [ "$PACKAGE_VERSION" != "$RELEASE_VERSION" ]; then
+            echo "::error::package.json version and Git tag do not match"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build package
-        run: npm run prepack
-
-      - name: Publish
-        run: npm publish --access public
+      - name: Publish package
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_V107 }}
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+
+          if [[ "$PACKAGE_VERSION" == *-* ]]; then
+            echo "Publishing prerelease: $PACKAGE_VERSION"
+            npm publish --access public --tag beta
+          else
+            echo "Publishing stable release: $PACKAGE_VERSION"
+            npm publish --access public --tag latest
+          fi
