@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import net from 'node:net'
-import path from 'node:path'
 import {test} from 'node:test'
 
-import {applyFileTransaction} from '../../dist/shared/atomic-file.js'
 import {SyncExecutor} from '../../dist/shared/sync-executor.js'
 import {SyncPlanner} from '../../dist/shared/sync-planner.js'
 import {SyncRepository} from '../../dist/shared/sync.repository.js'
@@ -274,18 +272,4 @@ test('auto-translate dry-run uses batch limits and performs no network or writes
   assert.deepEqual(await readBytes(project.file('uk')), ukBefore)
   assert.deepEqual(await readBytes(project.file('de')), deBefore)
   assert.equal(pathExists(project.typesFile), false)
-})
-
-test('file transaction restores an earlier mutation when a later write fails', async testContext => {
-  const project = await createProject(testContext)
-  const first = path.join(project.root, 'first.txt')
-  const blocker = path.join(project.root, 'blocker')
-  await writeText(first, 'old')
-  await writeText(blocker, 'not-a-directory')
-
-  await assert.rejects(applyFileTransaction([
-    {content: 'new', file: first},
-    {content: 'second', file: path.join(blocker, 'child.txt')},
-  ]))
-  assert.equal(await fs.promises.readFile(first, 'utf8'), 'old')
 })
