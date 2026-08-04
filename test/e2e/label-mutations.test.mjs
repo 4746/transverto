@@ -215,6 +215,41 @@ test('label:add per-language failure rolls back every project artifact', async t
   assert.deepEqual(await readBytes(project.typesFile), typesBefore)
 })
 
+test('label:add reports every translation engine failure', async testContext => {
+  const server = await startOpenAiServer(testContext, request => {
+    const prompt = request.body.messages.at(-1).content
+    const target = prompt.includes('Target language: en') ? 'en' : 'de'
+    return {body: {error: {message: `${target} provider down`}}, status: 500}
+  })
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'per-language', retry: 1}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+  await writeText(project.typesFile, 'original types\n')
+  const before = await Promise.all(['en', 'uk', 'de'].map(language => readBytes(project.file(language))))
+  const typesBefore = await readBytes(project.typesFile)
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Translation failed; label was not added:/)
+  assert.match(result.stderr, /- en \[provider_unavailable\] after 2 attempts: .*en provider down/)
+  assert.match(result.stderr, /- de \[provider_unavailable\] after 2 attempts: .*de provider down/)
+  assert.doesNotMatch(result.stderr, /^Translation batch contains failed items and is not complete\.$/m)
+  assert.equal(server.requests.length, 4)
+
+  for (const [index, language] of ['en', 'uk', 'de'].entries()) {
+    assert.deepEqual(await readBytes(project.file(language)), before[index])
+  }
+
+  assert.deepEqual(await readBytes(project.typesFile), typesBefore)
+})
+
 test('label:add rejects a missing configured dictionary without creating artifacts', async testContext => {
   const project = await createProject(testContext)
   await fs.promises.rm(project.file('de'))
