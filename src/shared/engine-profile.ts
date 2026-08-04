@@ -57,6 +57,17 @@ const validateTimeout = (value: unknown, profileName: string): number | undefine
   return value as number
 }
 
+const validateTemperature = (value: unknown, profileName: string): number | undefined => {
+  if (value === undefined) return
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) {
+    throw new Error(
+      `Engine profile "${profileName}" temperature must be a finite number from 0 through 2.`,
+    )
+  }
+
+  return value
+}
+
 const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
   if (!PROFILE_NAME_PATTERN.test(name)) {
     throw new Error(`Engine profile name "${name}" is invalid.`)
@@ -66,7 +77,17 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     throw new Error(`Engine profile "${name}" must be an object.`)
   }
 
-  const {apiKeyEnv, baseUrl, model, provider, timeoutMs} = rawProfile
+  const {
+    apiKeyEnv,
+    baseUrl,
+    model,
+    provider,
+    reasoning,
+    systemPrompt,
+    temperature,
+    timeoutMs,
+  } = rawProfile
+  const validatedTemperature = validateTemperature(temperature, name)
   const validatedTimeout = validateTimeout(timeoutMs, name)
   if (!ENGINE_PROVIDERS.includes(provider as TEngineProvider)) {
     throw new Error(`Engine profile "${name}" has an unsupported provider.`)
@@ -91,6 +112,14 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     throw new Error(`Engine profile "${name}" baseUrl must be a string.`)
   }
 
+  if (systemPrompt !== undefined && typeof systemPrompt !== 'string') {
+    throw new Error(`Engine profile "${name}" systemPrompt must be a string.`)
+  }
+
+  if (reasoning !== undefined && typeof reasoning !== 'boolean') {
+    throw new Error(`Engine profile "${name}" reasoning must be a boolean.`)
+  }
+
   const resolvedBaseUrl = typeof baseUrl === 'string' ? baseUrl : defaults.baseUrl
   if (!resolvedBaseUrl) {
     throw new Error(`Engine profile "${name}" requires baseUrl.`)
@@ -101,6 +130,9 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     ...(typeof baseUrl === 'string' ? {baseUrl: validateBaseUrl(baseUrl, name)} : {}),
     model: model.trim(),
     provider: provider as TEngineProvider,
+    ...(typeof reasoning === 'boolean' ? {reasoning} : {}),
+    ...(typeof systemPrompt === 'string' ? {systemPrompt} : {}),
+    ...(validatedTemperature === undefined ? {} : {temperature: validatedTemperature}),
     ...(validatedTimeout === undefined ? {} : {timeoutMs: validatedTimeout}),
   }
 }
