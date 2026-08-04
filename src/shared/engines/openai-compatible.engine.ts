@@ -3,10 +3,13 @@ import {
   TTranslationErrorCategory,
 } from '../entities/translation-error.js'
 import {
+  IMultiLanguageEngineResponse,
+  IMultiLanguageTranslationRequestPlan,
   IResolvedEngineProfile,
   ITranslationRequestPlan,
   TranslationEngine,
 } from '../entities/translation.engine.js'
+import {parseMultiLanguageCompletion} from '../multi-language-response.js'
 
 type TFetch = typeof fetch
 
@@ -41,6 +44,24 @@ const buildSystemPrompt = ({from, to, key, sourceText}: ITranslationRequestPlan)
   `Return only the translated source text without explanations, labels, metadata, quotes, JSON, or Markdown.`,
 ].join(' ')
 
+const buildBatchSystemPrompt = ({from, key, sourceText, targets}: IMultiLanguageTranslationRequestPlan): string => [
+  'You are a professional localization engine for web user interfaces.',
+  'All source texts are elements of websites or web applications, such as buttons, labels, form fields, menus, headings, tooltips, notifications, and validation messages.',
+  '',
+  `Source language: ${from}`,
+  `Target languages: ${targets.join(', ')}`,
+  `Localization key: ${key}`,
+  `Source text: ${sourceText}`,
+  '',
+  'Translate the source text into every requested target language.',
+  'Use the localization key only as context. Do not translate or return the key.',
+  'Use concise, natural, and conventional terminology used in web interfaces.',
+  'Preserve placeholders, HTML tags, template expressions, punctuation, capitalization, whitespace, paragraph structure, and formatting.',
+  'Return exactly one JSON object with one property for every requested target language.',
+  'Use each requested language code as the property name and its translated text as the string value.',
+  'Do not return Markdown fences, explanations, metadata, nested objects, arrays, or unrequested language codes.',
+].join(' ')
+
 const providerMessage = (body: unknown): string | undefined => {
   if (!isObject(body) || !isObject(body.error)) return
   return typeof body.error.message === 'string' ? body.error.message : undefined
@@ -62,6 +83,15 @@ export class OpenAICompatibleEngine implements TranslationEngine {
   ) {}
 
   async translate(request: ITranslationRequestPlan): Promise<string> {
+    return this.completion(buildSystemPrompt(request), request.sourceText)
+  }
+
+  async translateBatch(request: IMultiLanguageTranslationRequestPlan): Promise<IMultiLanguageEngineResponse> {
+    const content = await this.completion(buildBatchSystemPrompt(request), request.sourceText)
+    return parseMultiLanguageCompletion(content, request.targets)
+  }
+
+  private async completion(systemPrompt: string, userContent: string): Promise<string> {
     if (this.profile.apiKeyEnv && !this.profile.apiKey) {
       throw new TranslationError(
         'authentication',
@@ -78,8 +108,8 @@ export class OpenAICompatibleEngine implements TranslationEngine {
       response = await this.fetchImplementation(`${this.profile.baseUrl}/chat/completions`, {
         body: JSON.stringify({
           messages: [
-            {content: buildSystemPrompt(request), role: 'system'},
-            {content: request.sourceText, role: 'user'},
+            {content: systemPrompt, role: 'system'},
+            {content: userContent, role: 'user'},
           ],
           model: this.profile.model,
           stream: false,
