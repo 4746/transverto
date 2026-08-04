@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import {writeFileAtomic} from '../shared/atomic-file.js'
 import {
   buildConfig,
   IConfigBuilderInput,
@@ -18,6 +19,7 @@ import {ENGINE_PROVIDER_DEFAULTS, ENGINE_PROVIDERS} from '../shared/engine-profi
 import {IEngineProfile, TEngineProvider} from '../shared/entities/translation.engine.js'
 import {Helper} from '../shared/helper.js'
 import {LabelBaseCommand} from '../shared/label-base.command.js'
+import {generateTypesContent} from '../shared/types-generator.js'
 
 interface IInitOptions extends IConfigBuilderInput {
   createFiles: boolean
@@ -191,6 +193,13 @@ export default class Init extends LabelBaseCommand<typeof Init> {
           writtenLanguages.push(language)
         }
       }
+
+      const sourcePath = Helper.getPathLanguageFile(validated.source, validated.translationsPath)
+      const sourceDictionary = await Helper.readJsonFile(sourcePath) as Record<string, unknown>
+      await writeFileAtomic(
+        path.resolve(validated.typesPath),
+        generateTypesContent(config, sourceDictionary),
+      )
     }
 
     await Helper.writeJsonFile(config, configPath)
@@ -199,7 +208,7 @@ export default class Init extends LabelBaseCommand<typeof Init> {
     if (options.createFiles) {
       const preserved = validated.languages.length - writtenLanguages.length
       this.log(chalk.green(`Language files ready: ${validated.languages.length} (${writtenLanguages.length} written, ${preserved} preserved).`))
-      this.log(chalk.green(`Types directory ready for ${validated.typesPath}.`))
+      this.log(chalk.green(`Types file ready: ${validated.typesPath}.`))
     }
   }
 

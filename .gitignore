@@ -32,3 +32,4 @@ oclif.manifest.json
 # Optional stylelint cache
 .stylelintcache
 /package-lock.json
+/docs/
