@@ -8,7 +8,7 @@ import {
 
 test('batch mode defaults to per-language', () => {
   assert.equal(TRANSLATION_BATCH_DEFAULTS.mode, 'per-language')
-  assert.equal(resolveTranslationBatchConfig(undefined).mode, 'per-language')
+  assert.equal(resolveTranslationBatchConfig().mode, 'per-language')
   assert.equal(resolveTranslationBatchConfig({concurrency: 2}).mode, 'per-language')
 })
 

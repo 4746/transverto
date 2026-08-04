@@ -7,7 +7,7 @@ import {parseMultiLanguageCompletion} from '../../dist/shared/multi-language-res
 test('parses requested translations in requested order', () => {
   assert.deepEqual(
     parseMultiLanguageCompletion('{"de":"Sprache","uk":"Мова"}', ['uk', 'de']),
-    {issues: [], translations: {uk: 'Мова', de: 'Sprache'}, unexpectedTargets: []},
+    {issues: [], translations: {de: 'Sprache', uk: 'Мова'}, unexpectedTargets: []},
   )
 })
 
@@ -44,6 +44,7 @@ test('engine uses one JSON-only completion for all requested targets', async () 
       choices: [{message: {content: '{"uk":"Мова","de":"Sprache"}'}}],
     }), {headers: {'content-type': 'application/json'}, status: 200})
   }
+
   const engine = new OpenAICompatibleEngine({
     baseUrl: 'http://fixture.test/v1',
     model: 'fixture-model',
@@ -60,5 +61,5 @@ test('engine uses one JSON-only completion for all requested targets', async () 
   const system = requests[0].body.messages[0].content
   assert.match(system, /Return exactly one JSON object/)
   assert.match(system, /uk, de/)
-  assert.deepEqual(result.translations, {uk: 'Мова', de: 'Sprache'})
+  assert.deepEqual(result.translations, {de: 'Sprache', uk: 'Мова'})
 })

@@ -28,5 +28,6 @@ export const parseMultiLanguageCompletion = (
     else if (parsed[target].trim().length === 0) issues.push({reason: 'empty', target})
     else translations[target] = parsed[target].trim()
   }
+
   return {issues, translations, unexpectedTargets: Object.keys(parsed).filter(target => !requested.has(target))}
 }
