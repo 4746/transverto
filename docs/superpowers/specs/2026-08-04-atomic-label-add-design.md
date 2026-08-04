@@ -36,7 +36,7 @@ The shared entity definitions live in `src/shared/entities/label-add.ts`. The co
 2. Load all dictionaries and types without changing the filesystem.
 3. Create the label-add plan.
 4. If the plan contains a structural conflict, report an error and stop.
-5. When `--noAutoTranslate` is absent, send one request per missing target through `TranslationBatchService`. Existing batch mode, retry, fallback, concurrency, limits, and incomplete-package prompting remain in effect.
+5. When `--noAutoTranslate` is absent, send one logical request per missing target through `TranslationBatchService`. In `batch.mode = "multi-language"`, the service groups those targets into one provider package for the label. In `batch.mode = "per-language"`, it sends a separate provider request for each target. Existing retry, fallback, concurrency, limits, and incomplete-package prompting remain in effect.
 6. Require a complete usable outcome. Any failed, conflicting, remaining, skipped, cancelled, missing, or duplicate translation rejects the operation.
 7. Build the final dictionaries in memory. Set the entered source value, preserve existing target strings, and set only missing target values from translations or to `""` under `--noAutoTranslate`.
 8. Generate types from the final default-language dictionary.
@@ -62,6 +62,8 @@ Provider requests cannot be rolled back. Translation cache reads are allowed whi
 End-to-end coverage will prove:
 
 - a new label entered in a non-default language is translated into the default and every other configured language;
+- `batch.mode = "multi-language"` uses one grouped provider request and commits only a complete package;
+- `batch.mode = "per-language"` uses separate target requests and commits only when every request succeeds;
 - the new label appears in `TLanguageLabel` generated from the final default dictionary;
 - existing values in non-source dictionaries are preserved;
 - `--noAutoTranslate` writes empty strings only to missing targets;
