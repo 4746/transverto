@@ -36,6 +36,26 @@ test('translateBatch returns fresh results without caching before commit', async
   assert.equal(cached.results.every(result => result.cached), true)
 })
 
+test('translate can defer fresh cache writes until an explicit commit', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: {choices: [{message: {content: 'Привіт'}}]}, status: 200,
+  }))
+  const project = await createTemporaryProject(testContext)
+  const service = TranslationService.fromConfig(createConfig({
+    engine: 'fixture',
+    engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+  }), {cacheFile: path.join(project.cacheRoot, 'translations.json'), deferCacheWrites: true})
+  const request = {from: 'en', key: 'hello', sourceText: 'Hello', to: 'uk'}
+
+  const first = await service.translate(request)
+  await service.translate(request)
+  assert.equal(server.requests.length, 2)
+
+  await service.cacheResults([first])
+  assert.equal((await service.translate(request)).cached, true)
+  assert.equal(server.requests.length, 2)
+})
+
 test('translateBatch converts placeholder mismatches into target issues', async testContext => {
   const server = await startOpenAiServer(testContext, () => ({
     body: {choices: [{message: {content: '{"uk":"Привіт","de":"Hallo {name}"}'}}]},

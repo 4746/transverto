@@ -1,10 +1,18 @@
-import {confirm} from "@inquirer/prompts";
 import {Args, Flags} from '@oclif/core'
 import chalk from "chalk";
+import path from 'node:path'
 
-import {Helper} from "../../shared/helper.js";
+import type {ITranslationBatchOutput} from '../../shared/entities/translation-batch.js'
+
+import {CTV_TRANSLATION_CACHE_FILE} from '../../shared/constants.js'
+import {LabelAddExecutor} from '../../shared/label-add-executor.js'
+import {LabelAddPlanner} from '../../shared/label-add-planner.js'
+import {LabelAddRepository} from '../../shared/label-add.repository.js'
 import {LabelBaseCommand} from "../../shared/label-base.command.js";
-import {UTIL} from "../../shared/util.js";
+import {resolveTranslationBatchConfig} from '../../shared/translation-batch.config.js'
+import {TranslationBatchService} from '../../shared/translation-batch.service.js'
+import {createIncompleteDecisionHandler} from '../../shared/translation-incomplete.prompt.js'
+import {TranslationService} from '../../shared/translation.service.js'
 
 /**
  * node --loader ts-node/esm --no-warnings=ExperimentalWarning ./bin/dev label:add hello.world  -f="en"
@@ -88,46 +96,67 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
       this.log(chalk.green(`Enter translation:`), this.translation);
     }
 
-    const i18nPath = Helper.getPathLanguageFile(this.fromLangCode, this.cliConfig.basePath);
-
-    let dataJson: NonNullable<object>;
-
+    let plan
+    let snapshot
     try {
-      dataJson = await Helper.readJsonFile(i18nPath);
-    } catch (reason) {
-      // https://en.wikipedia.org/wiki/Errno.h
-      if (reason?.code === 'ENOENT') {
-        // No such file or directory
-        const answer = await confirm({
-          message: chalk.yellow(`The file [${i18nPath}] does not exist. \nCreate it?`),
-        }, {
-          clearPromptOnDone: true
-        });
+      snapshot = await LabelAddRepository.load(this.cliConfig)
+      plan = LabelAddPlanner.create(snapshot, {
+        autoTranslate: !this.noAutoTranslate,
+        key: this.label,
+        source: this.fromLangCode,
+        sourceText: this.translation,
+      })
+      if (plan.conflicts.length > 0) {
+        throw new Error(plan.conflicts
+          .map(conflict => `Translation key "${conflict.key}" has a path conflict in ${conflict.language}.`)
+          .join(' '))
+      }
+    } catch (error) {
+      this.error(this.errorMessage(error), {exit: 2})
+    }
 
-        if (!answer) {
-          this.log(chalk.green(`The file [${i18nPath}] is missing!`))
-          return  this.exit();
+    let batch: ITranslationBatchOutput | null = null
+    let translationService: TranslationService | undefined
+    try {
+      if (plan.requests.length > 0) {
+        translationService = TranslationService.fromConfig(this.cliConfig, {
+          cacheFile: path.join(this.config.cacheDir, CTV_TRANSLATION_CACHE_FILE),
+          deferCacheWrites: true,
+        })
+        const executor = {
+          translate: translationService.translate.bind(translationService),
+          translateBatch: translationService.translateBatch.bind(translationService),
         }
+        const onIncomplete = createIncompleteDecisionHandler({
+          interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+          output: process.stdout,
+        })
+        batch = await new TranslationBatchService(executor).execute(plan.requests, {
+          config: resolveTranslationBatchConfig(this.cliConfig.batch),
+          dryRun: false,
+          ...(onIncomplete ? {onIncomplete} : {}),
+        })
+      }
 
-        dataJson = {};
-        await Helper.writeOrCreateJsonFile(dataJson, i18nPath);
-      } else {
-        throw reason;
+      await LabelAddExecutor.apply({batch, plan, snapshot})
+    } catch (error) {
+      this.logToStderr(this.errorMessage(error))
+      process.exitCode = 1
+      return
+    }
+
+    if (translationService && batch) {
+      try {
+        await translationService.cacheResults(batch.results)
+      } catch (error) {
+        this.warn(`Label was added, but translations could not be cached: ${this.errorMessage(error)}`)
       }
     }
 
-    UTIL.setNestedValue(dataJson, this.label, this.translation);
-
-    await Helper.writeOrCreateJsonFile(dataJson, i18nPath);
-
-    const param = [`--write`];
-
-    if (!this.noAutoTranslate) {
-      param.push(`--auto-translate`)
-    }
-
-    await this.config.runCommand('label:sync', param);
-
     this.log(chalk.cyan(`Done!`));
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error)
   }
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import {test} from 'node:test'
 
 import {startOpenAiServer} from '../helpers/http-server.mjs'
@@ -6,9 +7,11 @@ import {
   createConfig,
   createProject,
   parseJsonOutput,
+  pathExists,
   readBytes,
   readJson,
   runCli,
+  writeText,
 } from '../helpers/project-fixture.mjs'
 
 const dictionaries = () => ({
@@ -63,7 +66,73 @@ test('label:add translates one source value to all targets in one package', asyn
   assert.equal((await readJson(project.file('de'))).label.language, 'Sprache')
 })
 
-test('label:add incomplete package keeps source and cancels every target write', async testContext => {
+test('label:add translates from a non-default source in multi-language mode', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: {choices: [{message: {content: '{"en":"Hello world!","de":"Hallo Welt!"}'}}]}, status: 200,
+  }))
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'multi-language'}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.equal(server.requests.length, 1)
+  assert.equal((await readJson(project.file('uk'))).btn.world, 'Привіт, світ!')
+  assert.equal((await readJson(project.file('en'))).btn.world, 'Hello world!')
+  assert.equal((await readJson(project.file('de'))).btn.world, 'Hallo Welt!')
+  assert.match(await fs.promises.readFile(project.typesFile, 'utf8'), /'btn\.world'/)
+})
+
+test('label:add translates from a non-default source in per-language mode', async testContext => {
+  const server = await startOpenAiServer(testContext, request => {
+    const prompt = request.body.messages[0].content
+    const content = prompt.includes('Target language: en') ? 'Hello world!' : 'Hallo Welt!'
+    return {body: {choices: [{message: {content}}]}, status: 200}
+  })
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'per-language'}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.equal(server.requests.length, 2)
+  assert.equal((await readJson(project.file('uk'))).btn.world, 'Привіт, світ!')
+  assert.equal((await readJson(project.file('en'))).btn.world, 'Hello world!')
+  assert.equal((await readJson(project.file('de'))).btn.world, 'Hallo Welt!')
+  assert.match(await fs.promises.readFile(project.typesFile, 'utf8'), /'btn\.world'/)
+})
+
+test('label:add without auto-translation preserves existing targets and fills missing targets', async testContext => {
+  const project = await createProject(testContext, {
+    dictionaries: {de: {btn: {world: 'Bestehend'}}, en: {}, uk: {}},
+  })
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--noAutoTranslate', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.equal((await readJson(project.file('uk'))).btn.world, 'Привіт, світ!')
+  assert.equal((await readJson(project.file('en'))).btn.world, '')
+  assert.equal((await readJson(project.file('de'))).btn.world, 'Bestehend')
+  assert.match(await fs.promises.readFile(project.typesFile, 'utf8'), /'btn\.world'/)
+})
+
+test('label:add incomplete package rolls back source, targets, and types', async testContext => {
   const server = await startOpenAiServer(testContext, () => ({
     body: {choices: [{message: {content: '{"uk":"Мова"}'}}]}, status: 200,
   }))
@@ -74,14 +143,93 @@ test('label:add incomplete package keeps source and cancels every target write',
       languages: ['en', 'uk', 'de'],
     }),
   })
+  await writeText(project.typesFile, 'original types\n')
+  const before = await Promise.all(['en', 'uk', 'de'].map(language => readBytes(project.file(language))))
+  const typesBefore = await readBytes(project.typesFile)
   const result = await runCli(project, [
     'label:add', 'label.language', '-f', 'en', '-t', 'Language', '--silent',
   ])
-  assert.equal(result.exitCode, 1)
+  assert.equal(result.exitCode, 1, result.stderr)
   assert.equal(server.requests.length, 1)
-  assert.equal((await readJson(project.file('en'))).label.language, 'Language')
-  assert.deepEqual(await readJson(project.file('uk')), {})
-  assert.deepEqual(await readJson(project.file('de')), {})
+  for (const [index, language] of ['en', 'uk', 'de'].entries()) {
+    assert.deepEqual(await readBytes(project.file(language)), before[index])
+  }
+
+  assert.deepEqual(await readBytes(project.typesFile), typesBefore)
+})
+
+test('label:add placeholder conflict rolls back every project artifact', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: {choices: [{message: {content: '{"uk":"Привіт","de":"Hallo {name}"}'}}]}, status: 200,
+  }))
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'multi-language'}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+  await writeText(project.typesFile, 'original types\n')
+  const before = await Promise.all(['en', 'uk', 'de'].map(language => readBytes(project.file(language))))
+  const typesBefore = await readBytes(project.typesFile)
+
+  const result = await runCli(project, [
+    'label:add', 'label.greeting', '-f', 'en', '-t', 'Hello {name}', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 1, result.stderr)
+  for (const [index, language] of ['en', 'uk', 'de'].entries()) {
+    assert.deepEqual(await readBytes(project.file(language)), before[index])
+  }
+
+  assert.deepEqual(await readBytes(project.typesFile), typesBefore)
+})
+
+test('label:add per-language failure rolls back every project artifact', async testContext => {
+  const server = await startOpenAiServer(testContext, request => {
+    const prompt = request.body.messages[0].content
+    return prompt.includes('Target language: de')
+      ? {body: {error: {message: 'down'}}, status: 500}
+      : {body: {choices: [{message: {content: 'Hello world!'}}]}, status: 200}
+  })
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'per-language'}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+  await writeText(project.typesFile, 'original types\n')
+  const before = await Promise.all(['en', 'uk', 'de'].map(language => readBytes(project.file(language))))
+  const typesBefore = await readBytes(project.typesFile)
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 1, result.stderr)
+  for (const [index, language] of ['en', 'uk', 'de'].entries()) {
+    assert.deepEqual(await readBytes(project.file(language)), before[index])
+  }
+
+  assert.deepEqual(await readBytes(project.typesFile), typesBefore)
+})
+
+test('label:add rejects a missing configured dictionary without creating artifacts', async testContext => {
+  const project = await createProject(testContext)
+  await fs.promises.rm(project.file('de'))
+  const enBefore = await readBytes(project.file('en'))
+  const ukBefore = await readBytes(project.file('uk'))
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--noAutoTranslate', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 2)
+  assert.deepEqual(await readBytes(project.file('en')), enBefore)
+  assert.deepEqual(await readBytes(project.file('uk')), ukBefore)
+  assert.equal(pathExists(project.file('de')), false)
+  assert.equal(pathExists(project.typesFile), false)
 })
 
 test('label rename exposes the same dry-run and write plan', async testContext => {
