@@ -180,6 +180,10 @@ export function formatSyncReport(report: ISyncReport): string[] {
   const lines: string[] = []
   const outcomeIndex = buildOutcomeIndex(report.batch)
 
+  for (const item of report.batch?.incomplete ?? []) {
+    lines.push(`INCOMPLETE ${item.from}${item.key ? ` ${item.key}` : ''} (${item.decision}; valid=${item.validTargets.join(', ') || 'none'}; invalid=${item.invalid.map(issue => `${issue.target}:${issue.reason}`).join(', ') || 'none'})`)
+  }
+
   for (const action of report.actions) {
     const counter = actionCounter(action, outcomeIndex)
     if (!shouldShowAction(action, counter)) continue

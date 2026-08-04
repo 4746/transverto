@@ -11,11 +11,14 @@ import {
   TranslationError,
 } from './entities/translation-error.js'
 import {
+  IMultiLanguageTranslationAttempt,
+  IMultiLanguageTranslationRequestPlan,
   IResolvedEngineProfile,
   ITranslationRequestPlan,
   ITranslationResult,
   TranslationEngine,
 } from './entities/translation.engine.js'
+import {comparePlaceholders} from './placeholder.js'
 import {TranslationCacheService} from './translation-cache.service.js'
 
 interface ITranslationRuntime {
@@ -47,6 +50,21 @@ const validateRequest = (request: ITranslationRequestPlan): void => {
 
   if (!request.sourceText || request.sourceText.trim().length === 0) {
     throw new TranslationError('validation', 'Source text must not be empty.')
+  }
+}
+
+const validateBatchRequest = (request: IMultiLanguageTranslationRequestPlan): void => {
+  if (!request.from || !request.sourceText || request.sourceText.trim().length === 0) {
+    throw new TranslationError('validation', 'Source language and text are required.')
+  }
+
+  if (request.targets.length === 0) throw new TranslationError('validation', 'At least one target language is required.')
+  if (new Set(request.targets).size !== request.targets.length) {
+    throw new TranslationError('validation', 'Target languages must not contain duplicates.')
+  }
+
+  if (request.targets.includes(request.from)) {
+    throw new TranslationError('validation', 'Source and target languages must differ.')
   }
 }
 
@@ -96,6 +114,22 @@ export class TranslationService {
     }
   }
 
+  async cacheResults(results: ITranslationResult[]): Promise<void> {
+    try {
+      for (const result of results) {
+        if (result.cached) continue
+        const runtime = result.engine === this.primary.profile.name ? this.primary : this.fallback
+        if (!runtime || runtime.profile.model !== result.model) {
+          throw new TranslationError('configuration', `Unknown result engine "${result.engine}".`)
+        }
+
+        await this.cache.set(this.identity(runtime.profile, result), result.translatedText)
+      }
+    } catch (error) {
+      throw toTranslationError(error, 'configuration')
+    }
+  }
+
   async translate(request: ITranslationRequestPlan): Promise<ITranslationResult> {
     validateRequest(request)
 
@@ -119,6 +153,46 @@ export class TranslationService {
     }
 
     return this.translateWith(this.fallback, request, this.primary.profile.name)
+  }
+
+  async translateBatch(request: IMultiLanguageTranslationRequestPlan): Promise<IMultiLanguageTranslationAttempt> {
+    validateBatchRequest(request)
+    const cached: ITranslationResult[] = []
+    const missing: string[] = []
+    for (const to of request.targets) {
+      const single = this.singleRequest(request, to)
+      const primaryCached = await this.getCached(this.primary, single)
+      if (primaryCached) { cached.push(primaryCached); continue }
+      const fallbackCached = this.fallback
+        ? await this.getCached(this.fallback, single, this.primary.profile.name)
+        : undefined
+      if (fallbackCached) cached.push(fallbackCached)
+      else missing.push(to)
+    }
+
+    let fresh: IMultiLanguageTranslationAttempt = {
+      issues: [], request: {...request, targets: []}, results: [], translations: {}, unexpectedTargets: [],
+    }
+    if (missing.length > 0) {
+      const uncached = {...request, targets: missing}
+      try {
+        fresh = await this.translateBatchWith(this.primary, uncached)
+      } catch (error) {
+        const translationError = toTranslationError(error, 'provider_response', undefined, {profile: this.primary.profile})
+        if (!this.fallback || !isRecoverableTranslationError(translationError)) throw translationError
+        fresh = await this.translateBatchWith(this.fallback, uncached, this.primary.profile.name)
+      }
+    }
+
+    const byTarget = new Map([...cached, ...fresh.results].map(result => [result.to, result]))
+    return {
+      ...fresh,
+      request,
+      results: request.targets.flatMap(target => {
+        const result = byTarget.get(target)
+        return result ? [result] : []
+      }),
+    }
   }
 
   private async getCached(
@@ -168,6 +242,42 @@ export class TranslationService {
       provider: profile.provider,
       translatedText: options.translatedText,
     }
+  }
+
+  private singleRequest(request: IMultiLanguageTranslationRequestPlan, to: string): ITranslationRequestPlan {
+    return {from: request.from, ...(request.key ? {key: request.key} : {}), sourceText: request.sourceText, to}
+  }
+
+  private async translateBatchWith(
+    runtime: ITranslationRuntime,
+    request: IMultiLanguageTranslationRequestPlan,
+    fallbackFrom?: string,
+  ): Promise<IMultiLanguageTranslationAttempt> {
+    if (!runtime.engine.translateBatch) {
+      throw new TranslationError('configuration', `Engine profile "${runtime.profile.name}" does not support multi-language translation.`, {profile: runtime.profile})
+    }
+
+    let response
+    try { response = await runtime.engine.translateBatch(request) }
+    catch (error) { throw toTranslationError(error, 'provider_response', undefined, {profile: runtime.profile}) }
+
+    const issues = [...response.issues]
+    const invalid = new Set(issues.map(issue => issue.target))
+    const results: ITranslationResult[] = []
+    for (const target of request.targets) {
+      const translatedText = response.translations[target]
+      if (invalid.has(target) || translatedText === undefined) continue
+      if (!comparePlaceholders(request.sourceText, translatedText).matches) {
+        issues.push({reason: 'placeholder', target})
+        continue
+      }
+
+      results.push(this.result(runtime.profile, this.singleRequest(request, target), {
+        cached: false, fallbackFrom, translatedText,
+      }))
+    }
+
+    return {...response, issues, request, results}
   }
 
   private async translateWith(

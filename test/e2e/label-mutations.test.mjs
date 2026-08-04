@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
+import {startOpenAiServer} from '../helpers/http-server.mjs'
 import {
+  createConfig,
   createProject,
   parseJsonOutput,
   readBytes,
@@ -40,6 +42,47 @@ const previewAndWrite = async (testContext, arguments_) => {
   assert.deepEqual(await readBytes(previewProject.file('uk')), previewBefore[1])
   return {project: writeProject, report: written}
 }
+
+test('label:add translates one source value to all targets in one package', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: {choices: [{message: {content: '{"uk":"Мова","de":"Sprache"}'}}]}, status: 200,
+  }))
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'multi-language'}, engine: 'fixture', engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+  const result = await runCli(project, [
+    'label:add', 'label.language', '-f', 'en', '-t', 'Language', '--silent',
+  ])
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.equal(server.requests.length, 1)
+  assert.equal((await readJson(project.file('en'))).label.language, 'Language')
+  assert.equal((await readJson(project.file('uk'))).label.language, 'Мова')
+  assert.equal((await readJson(project.file('de'))).label.language, 'Sprache')
+})
+
+test('label:add incomplete package keeps source and cancels every target write', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: {choices: [{message: {content: '{"uk":"Мова"}'}}]}, status: 200,
+  }))
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'multi-language'}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+  const result = await runCli(project, [
+    'label:add', 'label.language', '-f', 'en', '-t', 'Language', '--silent',
+  ])
+  assert.equal(result.exitCode, 1)
+  assert.equal(server.requests.length, 1)
+  assert.equal((await readJson(project.file('en'))).label.language, 'Language')
+  assert.deepEqual(await readJson(project.file('uk')), {})
+  assert.deepEqual(await readJson(project.file('de')), {})
+})
 
 test('label rename exposes the same dry-run and write plan', async testContext => {
   const {project, report} = await previewAndWrite(testContext, [

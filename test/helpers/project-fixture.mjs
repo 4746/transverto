@@ -28,6 +28,7 @@ export const createConfig = ({
     delayMs: 0,
     maxChars: null,
     maxItems: null,
+    mode: 'per-language',
     retry: 0,
     ...batch,
   },

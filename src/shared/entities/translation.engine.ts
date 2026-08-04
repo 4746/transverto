@@ -1,4 +1,6 @@
 import type {
+  IIncompleteTarget,
+  IIncompleteTranslationBatch,
   ITranslationBatchSummary,
   ITranslationConflict,
   ITranslationFailed,
@@ -37,6 +39,24 @@ export interface ITranslationRequestPlan {
   to: string
 }
 
+export interface IMultiLanguageTranslationRequestPlan {
+  from: string
+  key?: string
+  sourceText: string
+  targets: string[]
+}
+
+export interface IMultiLanguageEngineResponse {
+  issues: IIncompleteTarget[]
+  translations: Record<string, string>
+  unexpectedTargets: string[]
+}
+
+export interface IMultiLanguageTranslationAttempt extends IMultiLanguageEngineResponse {
+  request: IMultiLanguageTranslationRequestPlan
+  results: ITranslationResult[]
+}
+
 export interface ITranslationResult extends ITranslationRequestPlan {
   cached: boolean
   engine: string
@@ -50,6 +70,7 @@ export interface ITranslateOutput {
   conflicts: ITranslationConflict[]
   dryRun: boolean
   failed: ITranslationFailed[]
+  incomplete: IIncompleteTranslationBatch[]
   remaining: ITranslationRemaining[]
   requests: ITranslationRequestPlan[]
   results: ITranslationResult[]
@@ -60,4 +81,5 @@ export interface ITranslateOutput {
 
 export interface TranslationEngine {
   translate(request: ITranslationRequestPlan): Promise<string>
+  translateBatch?(request: IMultiLanguageTranslationRequestPlan): Promise<IMultiLanguageEngineResponse>
 }
