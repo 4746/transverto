@@ -53,7 +53,8 @@ test('translate uses the local provider, preserves placeholders, and reuses cach
   assert.equal(first.results[0].model, 'fixture-model')
   assert.equal(server.requests.length, 1)
   assert.equal(server.requests[0].url, '/v1/chat/completions')
-  assert.equal(server.requests[0].body.messages.at(-1).content, 'Hello {name}')
+  assert.equal(server.requests[0].body.messages.at(-1).role, 'user')
+  assert.match(server.requests[0].body.messages.at(-1).content, /Source text: Hello \{name\}/)
 
   const secondResult = await runCli(project, arguments_)
   assert.equal(secondResult.exitCode, 0, secondResult.stderr)

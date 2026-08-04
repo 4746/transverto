@@ -7,9 +7,12 @@ const requestBodyFor = async (overrides = {}, batch = false) => {
   const requests = []
   const fetchImplementation = async (_url, init) => {
     requests.push(JSON.parse(init.body))
+
     const content = batch ? '{"uk":"Мова","de":"Sprache"}' : 'Мова'
+
     return new Response(JSON.stringify({choices: [{message: {content}}]}), {status: 200})
   }
+
   const engine = new OpenAICompatibleEngine({
     baseUrl: 'http://fixture.test/v1',
     model: 'fixture-model',
@@ -19,13 +22,11 @@ const requestBodyFor = async (overrides = {}, batch = false) => {
     ...overrides,
   }, fetchImplementation)
 
-  if (batch) {
-    await engine.translateBatch({
+  await (batch
+    ? engine.translateBatch({
       from: 'en', key: 'label.language', sourceText: 'Language', targets: ['uk', 'de'],
     })
-  } else {
-    await engine.translate({from: 'en', key: 'label.language', sourceText: 'Language', to: 'uk'})
-  }
+    : engine.translate({from: 'en', key: 'label.language', sourceText: 'Language', to: 'uk'}))
 
   assert.equal(requests.length, 1)
   return requests[0]
@@ -60,9 +61,9 @@ test('profile system prompt and temperature reach single and batch requests', as
 test('reasoning false maps to each provider dialect', async () => {
   const cases = [
     ['openrouter', {reasoning: {enabled: false}}],
-    ['google-ai', {reasoning_effort: 'none'}],
-    ['lmstudio', {reasoning_effort: 'none'}],
-    ['openai-compatible', {reasoning_effort: 'none'}],
+    ['google-ai', {'reasoning_effort': 'none'}],
+    ['lmstudio', {'reasoning_effort': 'none'}],
+    ['openai-compatible', {'reasoning_effort': 'none'}],
   ]
 
   for (const [provider, expected] of cases) {

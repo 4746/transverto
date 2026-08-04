@@ -44,7 +44,7 @@ const reasoningRequest = (
     return {reasoning: {enabled: profile.reasoning}}
   }
 
-  return profile.reasoning ? {} : {reasoning_effort: 'none'}
+  return profile.reasoning ? {} : {'reasoning_effort': 'none'}
 }
 
 const buildSystemPrompt = ({from, to, key, sourceText}: ITranslationRequestPlan): string => [

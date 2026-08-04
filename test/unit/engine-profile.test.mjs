@@ -68,9 +68,9 @@ test('engine profile rejects invalid request options', () => {
     assert.throws(() => validateEngineConfiguration('fixture', {
       fixture: {
         baseUrl: 'http://fixture.test/v1',
+        [field]: value,
         model: 'fixture-model',
         provider: 'openai-compatible',
-        [field]: value,
       },
     }), message)
   }
