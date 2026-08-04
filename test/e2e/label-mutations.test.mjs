@@ -92,7 +92,7 @@ test('label:add translates from a non-default source in multi-language mode', as
 
 test('label:add translates from a non-default source in per-language mode', async testContext => {
   const server = await startOpenAiServer(testContext, request => {
-    const prompt = request.body.messages[0].content
+    const prompt = request.body.messages.at(-1).content
     const content = prompt.includes('Target language: en') ? 'Hello world!' : 'Hallo Welt!'
     return {body: {choices: [{message: {content}}]}, status: 200}
   })
@@ -187,7 +187,7 @@ test('label:add placeholder conflict rolls back every project artifact', async t
 
 test('label:add per-language failure rolls back every project artifact', async testContext => {
   const server = await startOpenAiServer(testContext, request => {
-    const prompt = request.body.messages[0].content
+    const prompt = request.body.messages.at(-1).content
     return prompt.includes('Target language: de')
       ? {body: {error: {message: 'down'}}, status: 500}
       : {body: {choices: [{message: {content: 'Hello world!'}}]}, status: 200}

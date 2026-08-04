@@ -58,8 +58,9 @@ test('engine uses one JSON-only completion for all requested targets', async () 
   })
 
   assert.equal(requests.length, 1)
-  const system = requests[0].body.messages[0].content
-  assert.match(system, /Return exactly one JSON object/)
-  assert.match(system, /uk, de/)
+  assert.equal(requests[0].body.messages[0].content, '')
+  const user = requests[0].body.messages[1].content
+  assert.match(user, /Return exactly one JSON object/)
+  assert.match(user, /uk, de/)
   assert.deepEqual(result.translations, {de: 'Sprache', uk: 'Мова'})
 })

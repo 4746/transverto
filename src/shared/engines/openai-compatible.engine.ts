@@ -24,8 +24,28 @@ interface IChatCompletionResponse {
   }
 }
 
+interface IChatCompletionRequest {
+  messages: Array<{content: string; role: 'system' | 'user'}>
+  model: string
+  reasoning?: {enabled: boolean}
+  reasoning_effort?: 'none'
+  stream: false
+  temperature: number
+}
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const reasoningRequest = (
+  profile: IResolvedEngineProfile,
+): Pick<IChatCompletionRequest, 'reasoning' | 'reasoning_effort'> => {
+  if (profile.reasoning === undefined) return {}
+  if (profile.provider === 'openrouter') {
+    return {reasoning: {enabled: profile.reasoning}}
+  }
+
+  return profile.reasoning ? {} : {reasoning_effort: 'none'}
+}
 
 const buildSystemPrompt = ({from, to, key, sourceText}: ITranslationRequestPlan): string => [
   'You are a professional localization engine for web user interfaces.',
@@ -83,13 +103,14 @@ export class OpenAICompatibleEngine implements TranslationEngine {
   ) {}
 
   async translate(request: ITranslationRequestPlan): Promise<string> {
-    // return this.completion(buildSystemPrompt(request), request.sourceText)
-    return this.completion('', buildSystemPrompt(request))
+    return this.completion(this.profile.systemPrompt ?? '', buildSystemPrompt(request))
   }
 
   async translateBatch(request: IMultiLanguageTranslationRequestPlan): Promise<IMultiLanguageEngineResponse> {
-    // const content = await this.completion(buildBatchSystemPrompt(request), request.sourceText)
-    const content = await this.completion('', buildBatchSystemPrompt(request))
+    const content = await this.completion(
+      this.profile.systemPrompt ?? '',
+      buildBatchSystemPrompt(request),
+    )
     return parseMultiLanguageCompletion(content, request.targets)
   }
 
@@ -105,18 +126,21 @@ export class OpenAICompatibleEngine implements TranslationEngine {
     const headers: Record<string, string> = {'Content-Type': 'application/json'}
     if (this.profile.apiKey) headers.Authorization = `Bearer ${this.profile.apiKey}`
 
+    const requestBody: IChatCompletionRequest = {
+      messages: [
+        {content: systemPrompt, role: 'system'},
+        {content: userContent, role: 'user'},
+      ],
+      model: this.profile.model,
+      ...reasoningRequest(this.profile),
+      stream: false,
+      temperature: this.profile.temperature ?? 0,
+    }
+
     let response: Response
     try {
       response = await this.fetchImplementation(`${this.profile.baseUrl}/chat/completions`, {
-        body: JSON.stringify({
-          messages: [
-            {content: systemPrompt, role: 'system'},
-            {content: userContent, role: 'user'},
-          ],
-          model: this.profile.model,
-          stream: false,
-          temperature: 0,
-        }),
+        body: JSON.stringify(requestBody),
         headers,
         method: 'POST',
         signal: AbortSignal.timeout(this.profile.timeoutMs),

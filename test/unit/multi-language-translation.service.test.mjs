@@ -78,15 +78,39 @@ test('translateBatch sends a recoverable full-package failure to fallback', asyn
   const project = await createTemporaryProject(testContext)
   const service = TranslationService.fromConfig(createConfig({
     engine: 'primary', engines: {
-      fallback: {baseUrl: fallback.baseUrl, model: 'fallback-model', provider: 'openai-compatible'},
-      primary: {baseUrl: primary.baseUrl, model: 'primary-model', provider: 'openai-compatible'},
+      fallback: {
+        apiKeyEnv: 'CTV_TEST_KEY',
+        baseUrl: fallback.baseUrl,
+        model: 'fallback-model',
+        provider: 'openrouter',
+        reasoning: false,
+        systemPrompt: 'Fallback system prompt',
+        temperature: 0.4,
+      },
+      primary: {
+        baseUrl: primary.baseUrl,
+        model: 'primary-model',
+        provider: 'openai-compatible',
+        reasoning: false,
+        systemPrompt: 'Primary system prompt',
+        temperature: 0.1,
+      },
     },
     fallback: 'fallback',
-  }), {cacheFile: path.join(project.cacheRoot, 'translations.json')})
+  }), {
+    cacheFile: path.join(project.cacheRoot, 'translations.json'),
+    environment: {CTV_TEST_KEY: 'test'},
+  })
 
   const attempt = await service.translateBatch({from: 'en', sourceText: 'Language', targets: ['uk', 'de']})
   assert.equal(primary.requests.length, 1)
   assert.equal(fallback.requests.length, 1)
+  assert.equal(primary.requests[0].body.messages[0].content, 'Primary system prompt')
+  assert.equal(primary.requests[0].body.temperature, 0.1)
+  assert.equal(primary.requests[0].body.reasoning_effort, 'none')
+  assert.equal(fallback.requests[0].body.messages[0].content, 'Fallback system prompt')
+  assert.equal(fallback.requests[0].body.temperature, 0.4)
+  assert.deepEqual(fallback.requests[0].body.reasoning, {enabled: false})
   assert.equal(attempt.results.every(result => result.engine === 'fallback'), true)
   assert.equal(attempt.results.every(result => result.fallback.from === 'primary'), true)
 })
