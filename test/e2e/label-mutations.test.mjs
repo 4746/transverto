@@ -92,7 +92,7 @@ test('label:add translates from a non-default source in multi-language mode', as
 
 test('label:add translates from a non-default source in per-language mode', async testContext => {
   const server = await startOpenAiServer(testContext, request => {
-    const prompt = request.body.messages[0].content
+    const prompt = request.body.messages.at(-1).content
     const content = prompt.includes('Target language: en') ? 'Hello world!' : 'Hallo Welt!'
     return {body: {choices: [{message: {content}}]}, status: 200}
   })
@@ -187,7 +187,7 @@ test('label:add placeholder conflict rolls back every project artifact', async t
 
 test('label:add per-language failure rolls back every project artifact', async testContext => {
   const server = await startOpenAiServer(testContext, request => {
-    const prompt = request.body.messages[0].content
+    const prompt = request.body.messages.at(-1).content
     return prompt.includes('Target language: de')
       ? {body: {error: {message: 'down'}}, status: 500}
       : {body: {choices: [{message: {content: 'Hello world!'}}]}, status: 200}
@@ -208,6 +208,41 @@ test('label:add per-language failure rolls back every project artifact', async t
   ])
 
   assert.equal(result.exitCode, 1, result.stderr)
+  for (const [index, language] of ['en', 'uk', 'de'].entries()) {
+    assert.deepEqual(await readBytes(project.file(language)), before[index])
+  }
+
+  assert.deepEqual(await readBytes(project.typesFile), typesBefore)
+})
+
+test('label:add reports every translation engine failure', async testContext => {
+  const server = await startOpenAiServer(testContext, request => {
+    const prompt = request.body.messages.at(-1).content
+    const target = prompt.includes('Target language: en') ? 'en' : 'de'
+    return {body: {error: {message: `${target} provider down`}}, status: 500}
+  })
+  const project = await createProject(testContext, {
+    config: createConfig({
+      batch: {mode: 'per-language', retry: 1}, engine: 'fixture',
+      engines: {fixture: {baseUrl: server.baseUrl, model: 'fixture-model', provider: 'openai-compatible'}},
+      languages: ['en', 'uk', 'de'],
+    }),
+  })
+  await writeText(project.typesFile, 'original types\n')
+  const before = await Promise.all(['en', 'uk', 'de'].map(language => readBytes(project.file(language))))
+  const typesBefore = await readBytes(project.typesFile)
+
+  const result = await runCli(project, [
+    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr, /Translation failed; label was not added:/)
+  assert.match(result.stderr, /- en \[provider_unavailable\] after 2 attempts: .*en provider down/)
+  assert.match(result.stderr, /- de \[provider_unavailable\] after 2 attempts: .*de provider down/)
+  assert.doesNotMatch(result.stderr, /^Translation batch contains failed items and is not complete\.$/m)
+  assert.equal(server.requests.length, 4)
+
   for (const [index, language] of ['en', 'uk', 'de'].entries()) {
     assert.deepEqual(await readBytes(project.file(language)), before[index])
   }

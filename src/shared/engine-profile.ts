@@ -57,6 +57,39 @@ const validateTimeout = (value: unknown, profileName: string): number | undefine
   return value as number
 }
 
+const validateTemperature = (value: unknown, profileName: string): number | undefined => {
+  if (value === undefined) return
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) {
+    throw new Error(
+      `Engine profile "${profileName}" temperature must be a finite number from 0 through 2.`,
+    )
+  }
+
+  return value
+}
+
+const validateRequestOptions = (
+  rawProfile: Record<string, unknown>,
+  profileName: string,
+): Pick<IEngineProfile, 'reasoning' | 'systemPrompt' | 'temperature'> => {
+  const {reasoning, systemPrompt, temperature} = rawProfile
+  const validatedTemperature = validateTemperature(temperature, profileName)
+
+  if (systemPrompt !== undefined && typeof systemPrompt !== 'string') {
+    throw new Error(`Engine profile "${profileName}" systemPrompt must be a string.`)
+  }
+
+  if (reasoning !== undefined && typeof reasoning !== 'boolean') {
+    throw new Error(`Engine profile "${profileName}" reasoning must be a boolean.`)
+  }
+
+  return {
+    ...(typeof reasoning === 'boolean' ? {reasoning} : {}),
+    ...(typeof systemPrompt === 'string' ? {systemPrompt} : {}),
+    ...(validatedTemperature === undefined ? {} : {temperature: validatedTemperature}),
+  }
+}
+
 const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
   if (!PROFILE_NAME_PATTERN.test(name)) {
     throw new Error(`Engine profile name "${name}" is invalid.`)
@@ -66,7 +99,14 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     throw new Error(`Engine profile "${name}" must be an object.`)
   }
 
-  const {apiKeyEnv, baseUrl, model, provider, timeoutMs} = rawProfile
+  const {
+    apiKeyEnv,
+    baseUrl,
+    model,
+    provider,
+    timeoutMs,
+  } = rawProfile
+  const requestOptions = validateRequestOptions(rawProfile, name)
   const validatedTimeout = validateTimeout(timeoutMs, name)
   if (!ENGINE_PROVIDERS.includes(provider as TEngineProvider)) {
     throw new Error(`Engine profile "${name}" has an unsupported provider.`)
@@ -101,6 +141,7 @@ const validateProfile = (name: string, rawProfile: unknown): IEngineProfile => {
     ...(typeof baseUrl === 'string' ? {baseUrl: validateBaseUrl(baseUrl, name)} : {}),
     model: model.trim(),
     provider: provider as TEngineProvider,
+    ...requestOptions,
     ...(validatedTimeout === undefined ? {} : {timeoutMs: validatedTimeout}),
   }
 }

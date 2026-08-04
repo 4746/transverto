@@ -2,7 +2,10 @@ import {Args, Flags} from '@oclif/core'
 import chalk from "chalk";
 import path from 'node:path'
 
-import type {ITranslationBatchOutput} from '../../shared/entities/translation-batch.js'
+import type {
+  ITranslationBatchOutput,
+  ITranslationFailed,
+} from '../../shared/entities/translation-batch.js'
 
 import {CTV_TRANSLATION_CACHE_FILE} from '../../shared/constants.js'
 import {LabelAddExecutor} from '../../shared/label-add-executor.js'
@@ -140,7 +143,10 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
 
       await LabelAddExecutor.apply({batch, plan, snapshot})
     } catch (error) {
-      this.logToStderr(this.errorMessage(error))
+      const message = batch?.failed.length
+        ? this.translationFailureMessage(batch.failed)
+        : this.errorMessage(error)
+      this.logToStderr(message)
       process.exitCode = 1
       return
     }
@@ -158,5 +164,15 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
 
   private errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
+  }
+
+  private translationFailureMessage(failures: ITranslationFailed[]): string {
+    return [
+      'Translation failed; label was not added:',
+      ...failures.map(failed => {
+        const attempts = `${failed.attempts} ${failed.attempts === 1 ? 'attempt' : 'attempts'}`
+        return `- ${failed.request.to} [${failed.category}] after ${attempts}: ${failed.message}`
+      }),
+    ].join('\n')
   }
 }

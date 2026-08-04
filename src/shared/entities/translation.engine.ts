@@ -22,6 +22,9 @@ export interface IEngineProfile {
   baseUrl?: string
   model: string
   provider: TEngineProvider
+  reasoning?: boolean
+  systemPrompt?: string
+  temperature?: number
   timeoutMs?: number
 }
 
