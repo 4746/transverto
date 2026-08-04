@@ -34,6 +34,7 @@ interface ITranslationResultOptions {
 
 export interface ITranslationServiceOptions {
   cacheFile: string
+  deferCacheWrites?: boolean
   environment?: NodeJS.ProcessEnv
   fallback?: null | string
   selectedEngine?: string
@@ -73,6 +74,7 @@ export class TranslationService {
     private readonly primary: ITranslationRuntime,
     private readonly fallback: ITranslationRuntime | undefined,
     private readonly cache: TranslationCacheService,
+    private readonly deferCacheWrites: boolean,
   ) {}
 
   static fromConfig(
@@ -108,6 +110,7 @@ export class TranslationService {
           ? {engine: new OpenAICompatibleEngine(fallbackProfile), profile: fallbackProfile}
           : undefined,
         cache,
+        options.deferCacheWrites ?? false,
       )
     } catch (error) {
       throw toTranslationError(error, 'configuration')
@@ -300,10 +303,12 @@ export class TranslationService {
       )
     }
 
-    try {
-      await this.cache.set(this.identity(runtime.profile, request), translatedText)
-    } catch (error) {
-      throw toTranslationError(error, 'configuration')
+    if (!this.deferCacheWrites) {
+      try {
+        await this.cache.set(this.identity(runtime.profile, request), translatedText)
+      } catch (error) {
+        throw toTranslationError(error, 'configuration')
+      }
     }
 
     return this.result(runtime.profile, request, {cached: false, fallbackFrom, translatedText})
