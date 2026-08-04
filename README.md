@@ -58,6 +58,9 @@ provider can coexist.
       "provider": "lmstudio",
       "baseUrl": "http://localhost:1234/v1",
       "model": "google/gemma-4-12b-qat",
+      "systemPrompt": "You are a concise translation assistant.",
+      "temperature": 0.2,
+      "reasoning": false,
       "timeoutMs": 30000
     },
     "google-ai": {
@@ -77,6 +80,17 @@ provider can coexist.
 `fallback` accepts one configured profile name or `null`. It must differ from
 the active primary profile; fallback chains and load balancing are not supported.
 Each profile can set a positive `timeoutMs`; the default is `30000`.
+
+Each engine profile can also set `systemPrompt`, `temperature`, and `reasoning`.
+`systemPrompt` is sent as the system message, while the generated translation
+task is sent as the user message. `temperature` accepts values from `0` through
+`2` and defaults to `0`. If `reasoning` is omitted, Transverto leaves the
+provider default unchanged. Set `reasoning` to `false` to request disabled
+reasoning for that profile.
+
+Reasoning parameters are mapped to each supported provider's API dialect.
+Some models require reasoning and may reject attempts to disable it; Transverto
+reports that provider error and does not silently retry with reasoning enabled.
 
 Supported providers:
 
