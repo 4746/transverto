@@ -1,4 +1,5 @@
 import type {
+  IIncompleteTranslationBatch,
   ITranslationBatchConfig,
   ITranslationBatchOutput,
   ITranslationBatchSummary,
@@ -6,8 +7,11 @@ import type {
   ITranslationFailed,
   ITranslationRemaining,
   ITranslationSkipped,
+  TIncompleteBatchDecision,
 } from './entities/translation-batch.js'
 import type {
+  IMultiLanguageTranslationAttempt,
+  IMultiLanguageTranslationRequestPlan,
   ITranslationRequestPlan,
   ITranslationResult,
 } from './entities/translation.engine.js'
@@ -19,7 +23,9 @@ import {
 import {classifySkippedSource, comparePlaceholders} from './placeholder.js'
 
 interface ITranslationExecutor {
+  cacheResults?(results: ITranslationResult[]): Promise<void>
   translate(request: ITranslationRequestPlan): Promise<ITranslationResult>
+  translateBatch?(request: IMultiLanguageTranslationRequestPlan): Promise<IMultiLanguageTranslationAttempt>
 }
 
 interface ITranslationBatchDependencies {
@@ -44,6 +50,16 @@ interface IProcessedBatch {
   results: Array<IIndexed<ITranslationResult>>
 }
 
+interface ITranslationGroup {
+  entries: Array<IIndexed<ITranslationRequestPlan>>
+  request: IMultiLanguageTranslationRequestPlan
+}
+
+interface IMultiLanguageProcessed extends IProcessedBatch {
+  cancelled: boolean
+  incomplete: IIncompleteTranslationBatch[]
+}
+
 interface IProcessResult {
   conflict?: ITranslationConflict
   failed?: ITranslationFailed
@@ -53,6 +69,9 @@ interface IProcessResult {
 export interface ITranslationBatchExecutionOptions {
   config: ITranslationBatchConfig
   dryRun: boolean
+  onIncomplete?: (
+    batch: Omit<IIncompleteTranslationBatch, 'decision'>,
+  ) => Promise<TIncompleteBatchDecision>
 }
 
 type TBatchWithoutSummary = Omit<ITranslationBatchOutput, 'summary'>
@@ -143,17 +162,26 @@ export class TranslationBatchService {
     options: ITranslationBatchExecutionOptions,
   ): Promise<ITranslationBatchOutput> {
     const plan = planRequests(requests, options.config, options.dryRun)
-    const processed = options.dryRun
-      ? {conflicts: [], failed: [], results: []}
-      : await this.processSelected(plan.selected, options.config)
+    const processed: IMultiLanguageProcessed = options.dryRun
+      ? {cancelled: false, conflicts: [], failed: [], incomplete: [], results: []}
+      : options.config.mode === 'multi-language'
+        ? await this.processMultiLanguage(plan.selected, options)
+        : {...await this.processSelected(plan.selected, options.config), cancelled: false, incomplete: []}
+    const cancelledRemaining = processed.cancelled
+      ? plan.selected.map(entry => ({index: entry.index, value: {reason: 'incomplete_batch' as const, request: entry.value}}))
+      : []
     const output: TBatchWithoutSummary = {
-      conflicts: sortValues(processed.conflicts),
-      failed: sortValues(processed.failed),
-      incomplete: [],
-      remaining: sortValues(plan.remaining),
-      results: sortValues(processed.results),
+      conflicts: processed.cancelled ? [] : sortValues(processed.conflicts),
+      failed: processed.cancelled ? [] : sortValues(processed.failed),
+      incomplete: processed.incomplete,
+      remaining: sortValues([...plan.remaining, ...cancelledRemaining]),
+      results: processed.cancelled ? [] : sortValues(processed.results),
       skipped: sortValues(plan.skipped),
     }
+    if (!processed.cancelled && !options.dryRun && options.config.mode === 'multi-language') {
+      await this.executor.cacheResults?.(output.results.filter(result => !result.cached))
+    }
+
     const summary = summarizeTranslationBatch(output)
     const accounted = Object.values(summary).reduce((total, count) => total + count, 0)
 
@@ -162,6 +190,17 @@ export class TranslationBatchService {
     }
 
     return {...output, summary}
+  }
+
+  private appendRecoveryEntries(
+    issues: IMultiLanguageTranslationAttempt['issues'],
+    byTarget: Map<string, IIndexed<ITranslationRequestPlan>>,
+    recover: Array<IIndexed<ITranslationRequestPlan>>,
+  ): void {
+    for (const issue of issues) {
+      const entry = byTarget.get(issue.target)
+      if (entry) recover.push(entry)
+    }
   }
 
   private createStartScheduler(config: ITranslationBatchConfig): () => Promise<void> {
@@ -173,6 +212,123 @@ export class TranslationBatchService {
       nextStartAt = startAt + config.delayMs
       await this.sleep(Math.max(0, startAt - this.now()))
     }
+  }
+
+  private groupRequests(selected: Array<IIndexed<ITranslationRequestPlan>>): ITranslationGroup[] {
+    const groups = new Map<string, ITranslationGroup>()
+    for (const entry of selected) {
+      const key = JSON.stringify([entry.value.from, entry.value.key ?? null, entry.value.sourceText])
+      let group = groups.get(key)
+      if (!group) {
+        group = {
+          entries: [],
+          request: {
+            from: entry.value.from,
+            ...(entry.value.key ? {key: entry.value.key} : {}),
+            sourceText: entry.value.sourceText,
+            targets: [],
+          },
+        }
+        groups.set(key, group)
+      }
+
+      group.entries.push(entry)
+      group.request.targets.push(entry.value.to)
+    }
+
+    return [...groups.values()]
+  }
+
+  private async processMultiLanguage(
+    selected: Array<IIndexed<ITranslationRequestPlan>>,
+    options: ITranslationBatchExecutionOptions,
+  ): Promise<IMultiLanguageProcessed> {
+    if (!this.executor.translateBatch) throw new Error('Multi-language executor is not configured.')
+    const groups = this.groupRequests(selected)
+    const conflicts: Array<IIndexed<ITranslationConflict>> = []
+    const failed: Array<IIndexed<ITranslationFailed>> = []
+    const incomplete: IIncompleteTranslationBatch[] = []
+    const results: Array<IIndexed<ITranslationResult>> = []
+    const recover: Array<IIndexed<ITranslationRequestPlan>> = []
+    const scheduleStart = this.createStartScheduler(options.config)
+    let cancelled = false
+    let cursor = 0
+    let decisionChain = Promise.resolve()
+
+    const decide = async (pending: Omit<IIncompleteTranslationBatch, 'decision'>): Promise<TIncompleteBatchDecision> => {
+      let decision: TIncompleteBatchDecision = 'cancel'
+      decisionChain = decisionChain.then(async () => {
+        decision = options.onIncomplete ? await options.onIncomplete(pending) : 'cancel'
+      })
+      await decisionChain
+      return decision
+    }
+
+    const worker = async (): Promise<void> => {
+      while (cursor < groups.length) {
+        const group = groups[cursor]
+        cursor += 1
+        let attempts = 0
+        let attempt: IMultiLanguageTranslationAttempt | undefined
+        let failure
+        while (!attempt) {
+          if (attempts > 0) {
+            const backoff = Math.min(30_000, Math.max(options.config.delayMs, 100) * (2 ** (attempts - 1)))
+            await this.sleep(backoff)
+          }
+
+          await scheduleStart()
+          attempts += 1
+          try { attempt = await this.executor.translateBatch!(group.request) }
+          catch (error) {
+            failure = toTranslationError(error, 'provider_response')
+            if (attempts <= options.config.retry && isRecoverableTranslationError(failure)) continue
+            break
+          }
+        }
+
+        if (!attempt) {
+          for (const entry of group.entries) {
+            failed.push({index: entry.index, value: {
+              attempts, category: failure.category, message: failure.message, request: entry.value,
+            }})
+          }
+
+          continue
+        }
+
+        const byTarget = new Map(group.entries.map(entry => [entry.value.to, entry]))
+        if (attempt.issues.length > 0) {
+          const validTargets = attempt.results.map(result => result.to)
+          const pending = {
+            from: group.request.from,
+            invalid: attempt.issues,
+            ...(group.request.key ? {key: group.request.key} : {}),
+            requestedTargets: group.request.targets,
+            sourceText: group.request.sourceText,
+            unexpectedTargets: attempt.unexpectedTargets,
+            validTargets,
+          }
+          const decision = await decide(pending)
+          incomplete.push({...pending, decision})
+          if (decision === 'cancel') cancelled = true
+          else this.appendRecoveryEntries(attempt.issues, byTarget, recover)
+        }
+
+        for (const result of attempt.results) {
+          const entry = byTarget.get(result.to)
+          if (entry) results.push({index: entry.index, value: result})
+        }
+      }
+    }
+
+    await Promise.all(Array.from({length: Math.min(options.config.concurrency, groups.length)}, async () => worker()))
+    if (cancelled) return {cancelled, conflicts, failed, incomplete, results}
+    const recovered = await this.processSelected(recover, options.config)
+    conflicts.push(...recovered.conflicts)
+    failed.push(...recovered.failed)
+    results.push(...recovered.results)
+    return {cancelled, conflicts, failed, incomplete, results}
   }
 
   private async processRequest(

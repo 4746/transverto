@@ -145,3 +145,18 @@ test('translate reports a provider failure without retrying or writing', async t
   assert.deepEqual(await readBytes(project.file('uk')), ukBefore)
   assert.equal(server.requests.length, 1)
 })
+
+test('multi-language mode uses one request for multiple targets', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: openAiResponse(JSON.stringify({de: 'Sprache', uk: 'Мова'})), status: 200,
+  }))
+  const project = await createProject(testContext, {
+    config: translationConfig(server.baseUrl, {batch: {mode: 'multi-language'}}),
+  })
+  const result = await runCli(project, [
+    'translate', 'Language', '--from', 'en', '--to', 'uk', '--to', 'de', '--json',
+  ])
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.equal(server.requests.length, 1)
+  assert.deepEqual(parseJsonOutput(result).results.map(item => item.to), ['uk', 'de'])
+})
