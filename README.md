@@ -44,6 +44,7 @@ provider can coexist.
 ```json
 {
   "batch": {
+    "mode": "per-language",
     "concurrency": 1,
     "delayMs": 0,
     "retry": 2,
@@ -129,6 +130,7 @@ Batch defaults come from `.ctv.config.json`:
 ```json
 {
   "batch": {
+    "mode": "per-language",
     "concurrency": 1,
     "delayMs": 0,
     "retry": 2,
@@ -145,6 +147,33 @@ and `provider_unavailable`. Retry backoff starts at `max(delayMs, 100)`, doubles
 and is capped at 30 seconds. CLI flags `--concurrency`, `--delay-ms`, `--retry`,
 `--max-items`, and `--max-chars` override only their matching config value for
 one run. `null` disables an item or character limit.
+
+`mode: "per-language"` is the default and sends one provider request per target
+language. Set `mode: "multi-language"` to group one source text and localization
+key across all uncached target languages and request one JSON object keyed by
+language code:
+
+```json
+{
+  "batch": {
+    "mode": "multi-language",
+    "concurrency": 1,
+    "delayMs": 0,
+    "retry": 2,
+    "maxItems": null,
+    "maxChars": null
+  }
+}
+```
+
+Limits are applied to individual planned translations before grouping. In
+multi-language mode, concurrency, delay, and retry apply to whole packages. A
+full recoverable provider failure keeps the configured primary/fallback
+behavior. A partial or invalid package never starts individual calls
+automatically: an interactive run asks whether to cancel or translate only the
+problem languages one by one, while a non-interactive or JSON run cancels
+without target-file or fresh-cache writes. If this happens during `label:add`,
+the source value already added to the source dictionary remains in place.
 
 Requests retain key order followed by target order even when work completes out
 of order. Limits select the longest initial translatable prefix. Once the next
@@ -1167,6 +1196,7 @@ _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v
   "basePath": "dist/i18n",
   "basePathEnum": "dist/i18n/language.ts",
   "batch": {
+    "mode": "per-language",
     "concurrency": 1,
     "delayMs": 0,
     "retry": 2,
