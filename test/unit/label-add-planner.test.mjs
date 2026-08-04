@@ -5,7 +5,7 @@ import {LabelAddPlanner} from '../../dist/shared/label-add-planner.js'
 import {createConfig} from '../helpers/project-fixture.mjs'
 
 const snapshotFor = dictionaries => {
-  const languages = Object.keys(dictionaries)
+  const languages = ['en', 'uk', 'de', 'pl'].filter(language => Object.hasOwn(dictionaries, language))
   return {
     config: createConfig({languages, source: 'en'}),
     cwd: process.cwd(),
@@ -22,10 +22,10 @@ const snapshotFor = dictionaries => {
 
 test('plans translations from a non-default source only for missing targets', () => {
   const snapshot = snapshotFor({
-    en: {},
-    uk: {},
     de: {},
+    en: {},
     pl: {btn: {world: 'Istniejące'}},
+    uk: {},
   })
   const plan = LabelAddPlanner.create(snapshot, {
     autoTranslate: true,
@@ -45,7 +45,7 @@ test('plans translations from a non-default source only for missing targets', ()
 })
 
 test('plans empty strings for missing targets when auto-translation is disabled', () => {
-  const plan = LabelAddPlanner.create(snapshotFor({en: {}, uk: {}, de: {}}), {
+  const plan = LabelAddPlanner.create(snapshotFor({de: {}, en: {}, uk: {}}), {
     autoTranslate: false,
     key: 'btn.world',
     source: 'uk',
@@ -58,9 +58,9 @@ test('plans empty strings for missing targets when auto-translation is disabled'
 
 test('reports every incompatible key path as a structural conflict', () => {
   const plan = LabelAddPlanner.create(snapshotFor({
+    de: {btn: {world: {nested: 'value'}}},
     en: {btn: 'Button'},
     uk: {},
-    de: {btn: {world: {nested: 'value'}}},
   }), {
     autoTranslate: true,
     key: 'btn.world',

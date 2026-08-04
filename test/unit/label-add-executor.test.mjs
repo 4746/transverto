@@ -43,9 +43,9 @@ test('atomically adds complete translations and generates types from final defau
   const project = await createProject(testContext, {
     config: createConfig({languages: ['en', 'uk', 'de'], source: 'en'}),
     dictionaries: {
+      de: {btn: {world: 'Bestehend'}},
       en: {home: {title: 'Home'}},
       uk: {},
-      de: {btn: {world: 'Bestehend'}},
     },
   })
   const {plan, snapshot} = await loadPlan(project, {
@@ -71,7 +71,7 @@ test('atomically adds complete translations and generates types from final defau
 
 test('adds empty strings to missing targets without a translation batch', async testContext => {
   const project = await createProject(testContext, {
-    dictionaries: {en: {}, uk: {}, de: {btn: {world: 'Bestehend'}}},
+    dictionaries: {de: {btn: {world: 'Bestehend'}}, en: {}, uk: {}},
   })
   const {plan, snapshot} = await loadPlan(project, {
     autoTranslate: false,
@@ -113,6 +113,7 @@ test('rejects every incomplete translation outcome without writes', async testCo
   for (const [index, language] of project.config.languages.entries()) {
     assert.deepEqual(await readBytes(project.file(language)), before[index])
   }
+
   assert.deepEqual(await readBytes(project.typesFile), typesBefore)
 })
 
@@ -140,6 +141,7 @@ test('rejects missing, duplicate, or unexpected translation results without writ
   for (const [index, language] of project.config.languages.entries()) {
     assert.deepEqual(await readBytes(project.file(language)), before[index])
   }
+
   assert.equal(pathExists(project.typesFile), false)
 })
 
