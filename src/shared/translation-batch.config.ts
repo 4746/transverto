@@ -8,6 +8,7 @@ export const TRANSLATION_BATCH_DEFAULTS: ITranslationBatchConfig = {
   delayMs: 0,
   maxChars: null,
   maxItems: null,
+  mode: 'per-language',
   retry: 2,
 }
 
@@ -16,6 +17,7 @@ const BATCH_CONFIG_KEYS = new Set<keyof ITranslationBatchConfig>([
   'delayMs',
   'maxChars',
   'maxItems',
+  'mode',
   'retry',
 ])
 
@@ -41,6 +43,14 @@ const validateLimit = (
 ): null | number => {
   if (value === null) return null
   return validateInteger(field, value, 1)
+}
+
+const validateMode = (value: unknown): ITranslationBatchConfig['mode'] => {
+  if (value !== 'per-language' && value !== 'multi-language') {
+    throw new Error('batch.mode must be "per-language" or "multi-language".')
+  }
+
+  return value
 }
 
 export function resolveTranslationBatchConfig(
@@ -69,6 +79,7 @@ export function resolveTranslationBatchConfig(
     delayMs: validateInteger('delayMs', merged.delayMs, 0),
     maxChars: validateLimit('maxChars', merged.maxChars),
     maxItems: validateLimit('maxItems', merged.maxItems),
+    mode: validateMode(merged.mode),
     retry: validateInteger('retry', merged.retry, 0),
   }
 }

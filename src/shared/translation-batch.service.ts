@@ -149,6 +149,7 @@ export class TranslationBatchService {
     const output: TBatchWithoutSummary = {
       conflicts: sortValues(processed.conflicts),
       failed: sortValues(processed.failed),
+      incomplete: [],
       remaining: sortValues(plan.remaining),
       results: sortValues(processed.results),
       skipped: sortValues(plan.skipped),

@@ -206,6 +206,7 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
     const outcomes = {
       conflicts: batch.conflicts,
       failed: batch.failed,
+      incomplete: batch.incomplete,
       remaining: batch.remaining,
       results,
       skipped,
