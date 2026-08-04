@@ -23,6 +23,7 @@ import {
   summarizeTranslationBatch,
   TranslationBatchService,
 } from '../shared/translation-batch.service.js'
+import {createIncompleteDecisionHandler} from '../shared/translation-incomplete.prompt.js'
 import {TranslationProjectService} from '../shared/translation-project.service.js'
 import {TranslationService} from '../shared/translation.service.js'
 
@@ -151,9 +152,11 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
     }
 
     try {
+      const onIncomplete = this.incompleteHandler(flags['dry-run'])
       const executed = await new TranslationBatchService(translationService).execute(requests, {
         config: batchConfig,
         dryRun: flags['dry-run'],
+        ...(onIncomplete ? {onIncomplete} : {}),
       })
       const batch = flags.confirm ? await this.confirmResults(executed) : executed
 
@@ -171,7 +174,7 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
         written,
       }
       const rendered = this.output(output)
-      if (output.summary.failed > 0 || output.summary.conflict > 0) process.exitCode = 1
+      if (this.isUnsuccessful(output)) process.exitCode = 1
       return rendered
     } catch (error) {
       this.error(this.errorMessage(error), {exit: 1})
@@ -224,6 +227,19 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
     return error instanceof Error ? error.message : String(error)
   }
 
+  private incompleteHandler(dryRun: boolean) {
+    return createIncompleteDecisionHandler({
+      interactive: !dryRun && !this.jsonEnabled() && Boolean(process.stdin.isTTY && process.stdout.isTTY),
+      output: process.stdout,
+    })
+  }
+
+  private isUnsuccessful(output: ITranslateOutput): boolean {
+    return output.summary.failed > 0 ||
+      output.summary.conflict > 0 ||
+      output.incomplete.some(item => item.decision === 'cancel')
+  }
+
   private output(output: ITranslateOutput): ITranslateOutput | void {
     if (this.jsonEnabled()) return output
 
@@ -247,6 +263,10 @@ export default class Translate extends LabelBaseCommand<typeof Translate> {
 
     for (const failed of output.failed) {
       this.log(`Failed: ${this.requestLabel(failed.request)} [${failed.category}] after ${failed.attempts} attempt(s): ${failed.message}`)
+    }
+
+    for (const item of output.incomplete) {
+      this.log(`Incomplete batch (${item.decision}): ${item.from}${item.key ? ` ${item.key}` : ''}; valid=${item.validTargets.join(', ') || 'none'}; invalid=${item.invalid.map(issue => `${issue.target}:${issue.reason}`).join(', ') || 'none'}`)
     }
 
     for (const remaining of output.remaining) {

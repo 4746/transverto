@@ -21,6 +21,7 @@ import {buildSyncReport, formatSyncReport} from '../../shared/sync-report.js'
 import {SyncRepository} from '../../shared/sync.repository.js'
 import {resolveTranslationBatchConfig} from '../../shared/translation-batch.config.js'
 import {TranslationBatchService} from '../../shared/translation-batch.service.js'
+import {createIncompleteDecisionHandler} from '../../shared/translation-incomplete.prompt.js'
 import {TranslationService} from '../../shared/translation.service.js'
 
 interface ISyncEngineFlags {
@@ -141,9 +142,11 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
               selectedEngine: flags.engine,
             },
           )
+          const onIncomplete = this.incompleteHandler()
           batch = await new TranslationBatchService(translationService).execute(requests, {
             config: batchConfig,
             dryRun: false,
+            ...(onIncomplete ? {onIncomplete} : {}),
           })
         }
       }
@@ -151,12 +154,13 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
       this.error(this.errorMessage(error), {exit: 2})
     }
 
-    let confirmed = flags.write
+    const batchCancelled = this.isBatchCancelled(batch)
+    let confirmed = flags.write && !batchCancelled
     let previewRendered = false
     let written: string[] = []
     const hasStructuralConflict = plan.actions.some(action => action.type === 'conflict')
 
-    if (!flags['dry-run'] && !flags.write && !hasStructuralConflict) {
+    if (!flags['dry-run'] && !flags.write && !hasStructuralConflict && !batchCancelled) {
       const preview = buildSyncReport({
         batch,
         confirmed: false,
@@ -197,6 +201,17 @@ export default class LabelSync extends LabelBaseCommand<typeof LabelSync> {
 
   private errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
+  }
+
+  private incompleteHandler() {
+    return createIncompleteDecisionHandler({
+      interactive: !this.jsonEnabled() && Boolean(process.stdin.isTTY && process.stdout.isTTY),
+      output: process.stdout,
+    })
+  }
+
+  private isBatchCancelled(batch: ITranslationBatchOutput | null): boolean {
+    return Boolean(batch?.incomplete.some(item => item.decision === 'cancel'))
   }
 
   private printHumanReport(report: ISyncReport): void {

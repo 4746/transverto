@@ -160,3 +160,27 @@ test('multi-language mode uses one request for multiple targets', async testCont
   assert.equal(server.requests.length, 1)
   assert.deepEqual(parseJsonOutput(result).results.map(item => item.to), ['uk', 'de'])
 })
+
+test('non-interactive incomplete package cancels without cache or target writes', async testContext => {
+  const server = await startOpenAiServer(testContext, () => ({
+    body: openAiResponse(JSON.stringify({uk: 'Мова'})), status: 200,
+  }))
+  const project = await createProject(testContext, {
+    config: translationConfig(server.baseUrl, {
+      batch: {mode: 'multi-language'}, languages: ['en', 'uk', 'de'],
+    }),
+    dictionaries: {de: {}, en: {label: 'Language'}, uk: {}},
+  })
+  const before = [await readBytes(project.file('uk')), await readBytes(project.file('de'))]
+  const arguments_ = [
+    'translate', '--key', 'label', '--from', 'en', '--to', 'uk', '--to', 'de', '--write', '--json',
+  ]
+  const first = await runCli(project, arguments_)
+  await runCli(project, arguments_)
+  assert.equal(first.exitCode, 1)
+  assert.equal(parseJsonOutput(first).incomplete[0].decision, 'cancel')
+  assert.equal(parseJsonOutput(first).remaining.length, 2)
+  assert.equal(server.requests.length, 2)
+  assert.deepEqual(await readBytes(project.file('uk')), before[0])
+  assert.deepEqual(await readBytes(project.file('de')), before[1])
+})

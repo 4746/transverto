@@ -1,5 +1,6 @@
 import type {
   IIncompleteTarget,
+  IIncompleteTranslationBatch,
   ITranslationBatchSummary,
   ITranslationConflict,
   ITranslationFailed,
@@ -69,6 +70,7 @@ export interface ITranslateOutput {
   conflicts: ITranslationConflict[]
   dryRun: boolean
   failed: ITranslationFailed[]
+  incomplete: IIncompleteTranslationBatch[]
   remaining: ITranslationRemaining[]
   requests: ITranslationRequestPlan[]
   results: ITranslationResult[]
