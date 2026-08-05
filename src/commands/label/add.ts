@@ -6,10 +6,12 @@ import type {
   ITranslationBatchOutput,
   ITranslationFailed,
 } from '../../shared/entities/translation-batch.js'
+import type {ILabelAddConflict} from '../../shared/entities/label-add.js'
 
 import {CTV_TRANSLATION_CACHE_FILE} from '../../shared/constants.js'
 import {LabelAddExecutor} from '../../shared/label-add-executor.js'
-import {LabelAddPlanner} from '../../shared/label-add-planner.js'
+import {inspectLabelAddKey, LabelAddPlanner} from '../../shared/label-add-planner.js'
+import {confirmLabelAddOverwrite} from '../../shared/label-add-overwrite.prompt.js'
 import {LabelAddRepository} from '../../shared/label-add.repository.js'
 import {LabelBaseCommand} from "../../shared/label-base.command.js";
 import {resolveTranslationBatchConfig} from '../../shared/translation-batch.config.js'
@@ -93,16 +95,30 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
       this.log(chalk.green(`Enter language:`), this.fromLangCode);
     }
 
-    this.translation = await this.getTranslation(flags.translation, this.fromLangCode);
-
-    if (!this.silent) {
-      this.log(chalk.green(`Enter translation:`), this.translation);
-    }
-
     let plan
     let snapshot
     try {
       snapshot = await LabelAddRepository.load(this.cliConfig)
+      const inspection = inspectLabelAddKey(snapshot, this.label)
+      if (inspection.conflicts.length > 0) {
+        throw new Error(this.pathConflictMessage(inspection.conflicts))
+      }
+
+      if (inspection.existing.length > 0) {
+        const accepted = await confirmLabelAddOverwrite({
+          interactive: !this.silent && Boolean(process.stdin.isTTY && process.stdout.isTTY),
+          key: this.label,
+          output: process.stdout,
+        })
+        if (!accepted) return
+      }
+
+      this.translation = await this.getTranslation(flags.translation, this.fromLangCode)
+
+      if (!this.silent) {
+        this.log(chalk.green(`Enter translation:`), this.translation)
+      }
+
       plan = LabelAddPlanner.create(snapshot, {
         autoTranslate: !this.noAutoTranslate,
         key: this.label,
@@ -110,9 +126,7 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
         sourceText: this.translation,
       })
       if (plan.conflicts.length > 0) {
-        throw new Error(plan.conflicts
-          .map(conflict => `Translation key "${conflict.key}" has a path conflict in ${conflict.language}.`)
-          .join(' '))
+        throw new Error(this.pathConflictMessage(plan.conflicts))
       }
     } catch (error) {
       this.error(this.errorMessage(error), {exit: 2})
@@ -164,6 +178,12 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
 
   private errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
+  }
+
+  private pathConflictMessage(conflicts: readonly ILabelAddConflict[]): string {
+    return conflicts
+      .map(conflict => `Translation key "${conflict.key}" has a path conflict in ${conflict.language}.`)
+      .join(' ')
   }
 
   private translationFailureMessage(failures: ITranslationFailed[]): string {

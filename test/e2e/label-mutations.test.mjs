@@ -116,20 +116,40 @@ test('label:add translates from a non-default source in per-language mode', asyn
   assert.match(await fs.promises.readFile(project.typesFile, 'utf8'), /'btn\.world'/)
 })
 
-test('label:add without auto-translation preserves existing targets and fills missing targets', async testContext => {
-  const project = await createProject(testContext, {
-    dictionaries: {de: {btn: {world: 'Bestehend'}}, en: {}, uk: {}},
-  })
+test('label:add rejects an existing key non-interactively without side effects', async testContext => {
+  const project = await createProject(testContext, {dictionaries: dictionaries()})
+  await writeText(project.typesFile, 'original types\n')
+  const before = await Promise.all(['en', 'uk'].map(language => readBytes(project.file(language))))
+  const typesBefore = await readBytes(project.typesFile)
 
   const result = await runCli(project, [
-    'label:add', 'btn.world', '--fromLangCode', 'uk', '-t', 'Привіт, світ!', '--noAutoTranslate', '--silent',
+    'label:add', 'home.keep', '--fromLangCode', 'uk',
+    '--translation', 'Нове значення', '--noAutoTranslate', '--silent',
   ])
 
-  assert.equal(result.exitCode, 0, result.stderr)
-  assert.equal((await readJson(project.file('uk'))).btn.world, 'Привіт, світ!')
-  assert.equal((await readJson(project.file('en'))).btn.world, '')
-  assert.equal((await readJson(project.file('de'))).btn.world, 'Bestehend')
-  assert.match(await fs.promises.readFile(project.typesFile, 'utf8'), /'btn\.world'/)
+  assert.equal(result.exitCode, 2)
+  assert.match(result.stderr, /Translation key "home\.keep" already exists/)
+  assert.deepEqual(await readBytes(project.file('en')), before[0])
+  assert.deepEqual(await readBytes(project.file('uk')), before[1])
+  assert.deepEqual(await readBytes(project.typesFile), typesBefore)
+})
+
+test('label:add detects an existing key outside fromLangCode', async testContext => {
+  const project = await createProject(testContext, {
+    dictionaries: {de: {}, en: {title: {data: 'Data'}}, uk: {}},
+  })
+  const before = await Promise.all(['en', 'uk', 'de'].map(language => readBytes(project.file(language))))
+
+  const result = await runCli(project, [
+    'label:add', 'title.data', '--fromLangCode', 'uk',
+    '--translation', 'Дані', '--noAutoTranslate', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 2)
+  assert.match(result.stderr, /Translation key "title\.data" already exists/)
+  for (const [index, language] of ['en', 'uk', 'de'].entries()) {
+    assert.deepEqual(await readBytes(project.file(language)), before[index])
+  }
 })
 
 test('label:add incomplete package rolls back source, targets, and types', async testContext => {
