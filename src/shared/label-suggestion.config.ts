@@ -24,15 +24,16 @@ export const resolveLabelSuggestionConfig = (
   )
 
   if (typeof config.labelSuggestionShowInvalid !== 'boolean') {
-    throw new Error('labelSuggestionShowInvalid must be a boolean.')
+    throw new TypeError('labelSuggestionShowInvalid must be a boolean.')
   }
 
   if (typeof config.labelValidation !== 'string') {
-    throw new Error('labelValidation must be a valid regular expression.')
+    throw new TypeError('labelValidation must be a valid regular expression.')
   }
 
   try {
-    new RegExp(config.labelValidation)
+    const pattern = new RegExp(config.labelValidation)
+    pattern.test('')
   } catch {
     throw new Error('labelValidation must be a valid regular expression.')
   }

@@ -8,6 +8,7 @@ export default class Label extends Command {
     move: Args.string({description: 'Moves a label branch.', required: false}),
     rename: Args.string({description: 'Renames a label.', required: false}),
     replace: Args.string({description: 'Replaces a label with the given value.', required: false}),
+    suggest: Args.string({description: 'Suggests English label keys.', required: false}),
     sync: Args.string({description: 'A command to update labels synchronously.', required: false}),
   }
 

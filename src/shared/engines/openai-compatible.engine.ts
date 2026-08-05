@@ -1,4 +1,8 @@
 import {
+  ILabelSuggestionRequest,
+  LabelSuggestionEngine,
+} from '../entities/label-suggestion.js'
+import {
   TranslationError,
   TTranslationErrorCategory,
 } from '../entities/translation-error.js'
@@ -9,10 +13,6 @@ import {
   ITranslationRequestPlan,
   TranslationEngine,
 } from '../entities/translation.engine.js'
-import {
-  ILabelSuggestionRequest,
-  LabelSuggestionEngine,
-} from '../entities/label-suggestion.js'
 import {parseLabelSuggestionCompletion} from '../label-suggestion-response.js'
 import {parseMultiLanguageCompletion} from '../multi-language-response.js'
 
@@ -127,6 +127,14 @@ export class OpenAICompatibleEngine implements LabelSuggestionEngine, Translatio
     private readonly fetchImplementation: TFetch = fetch,
   ) {}
 
+  async suggestLabels(request: ILabelSuggestionRequest): Promise<string[]> {
+    const content = await this.completion(
+      this.profile.labelSuggestionPrompt ?? DEFAULT_LABEL_SUGGESTION_PROMPT,
+      buildLabelSuggestionPrompt(request),
+    )
+    return parseLabelSuggestionCompletion(content)
+  }
+
   async translate(request: ITranslationRequestPlan): Promise<string> {
     return this.completion(this.profile.systemPrompt ?? '', buildSystemPrompt(request))
   }
@@ -137,14 +145,6 @@ export class OpenAICompatibleEngine implements LabelSuggestionEngine, Translatio
       buildBatchSystemPrompt(request),
     )
     return parseMultiLanguageCompletion(content, request.targets)
-  }
-
-  async suggestLabels(request: ILabelSuggestionRequest): Promise<string[]> {
-    const content = await this.completion(
-      this.profile.labelSuggestionPrompt ?? DEFAULT_LABEL_SUGGESTION_PROMPT,
-      buildLabelSuggestionPrompt(request),
-    )
-    return parseLabelSuggestionCompletion(content)
   }
 
   private async completion(systemPrompt: string, userContent: string): Promise<string> {
