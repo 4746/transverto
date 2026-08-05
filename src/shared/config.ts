@@ -6,6 +6,8 @@ import {TRANSLATION_BATCH_DEFAULTS} from './translation-batch.config.js'
 
 export const LANG_CODE_DEFAULT = 'en';
 export const LABEL_VALIDATION_DEFAULT = '^[a-z0-9\\.\\_]{2,100}$';
+export const LABEL_SUGGESTION_COUNT_DEFAULT = 5;
+export const LABEL_SUGGESTION_SHOW_INVALID_DEFAULT = false;
 
 export interface IConfig {
   /**
@@ -24,10 +26,11 @@ export interface IConfig {
   /**
    * Regular expression pattern for validating labels.
    *
-   * The label should only contain lowercase letters, numbers, periods, hyphens, and underscores.
-   * It should also be between 3 and 100 characters long.
+   * Accepted labels must match this configured pattern.
    */
   labelValidation: string;
+  labelSuggestionCount: number;
+  labelSuggestionShowInvalid: boolean;
   langCodeDefault: string;
   /**
    * List languages for cli.
@@ -56,10 +59,11 @@ export const CONFIG_DEFAULT: IConfig & {batch: ITranslationBatchConfig} = {
   /**
    * Regular expression pattern for validating labels.
    *
-   * The label should only contain lowercase letters, numbers, periods, hyphens, and underscores.
-   * It should also be between 3 and 100 characters long.
+   * Accepted labels must match this configured pattern.
    */
   labelValidation: LABEL_VALIDATION_DEFAULT,
+  labelSuggestionCount: LABEL_SUGGESTION_COUNT_DEFAULT,
+  labelSuggestionShowInvalid: LABEL_SUGGESTION_SHOW_INVALID_DEFAULT,
   langCodeDefault: LANG_CODE_DEFAULT,
   /**
    * List languages for cli.

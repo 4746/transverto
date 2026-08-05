@@ -20,6 +20,7 @@ export type TEngineProvider =
 export interface IEngineProfile {
   apiKeyEnv?: string
   baseUrl?: string
+  labelSuggestionPrompt?: string
   model: string
   provider: TEngineProvider
   reasoning?: boolean

@@ -71,9 +71,13 @@ const validateTemperature = (value: unknown, profileName: string): number | unde
 const validateRequestOptions = (
   rawProfile: Record<string, unknown>,
   profileName: string,
-): Pick<IEngineProfile, 'reasoning' | 'systemPrompt' | 'temperature'> => {
-  const {reasoning, systemPrompt, temperature} = rawProfile
+): Pick<IEngineProfile, 'labelSuggestionPrompt' | 'reasoning' | 'systemPrompt' | 'temperature'> => {
+  const {labelSuggestionPrompt, reasoning, systemPrompt, temperature} = rawProfile
   const validatedTemperature = validateTemperature(temperature, profileName)
+
+  if (labelSuggestionPrompt !== undefined && typeof labelSuggestionPrompt !== 'string') {
+    throw new Error(`Engine profile "${profileName}" labelSuggestionPrompt must be a string.`)
+  }
 
   if (systemPrompt !== undefined && typeof systemPrompt !== 'string') {
     throw new Error(`Engine profile "${profileName}" systemPrompt must be a string.`)
@@ -84,6 +88,7 @@ const validateRequestOptions = (
   }
 
   return {
+    ...(typeof labelSuggestionPrompt === 'string' ? {labelSuggestionPrompt} : {}),
     ...(typeof reasoning === 'boolean' ? {reasoning} : {}),
     ...(typeof systemPrompt === 'string' ? {systemPrompt} : {}),
     ...(validatedTemperature === undefined ? {} : {temperature: validatedTemperature}),

@@ -129,6 +129,8 @@ export function buildConfig(input: IConfigBuilderInput): IConfig {
     engines: validated.engines,
     fallback: CONFIG_DEFAULT.fallback,
     labelValidation: CONFIG_DEFAULT.labelValidation,
+    labelSuggestionCount: CONFIG_DEFAULT.labelSuggestionCount,
+    labelSuggestionShowInvalid: CONFIG_DEFAULT.labelSuggestionShowInvalid,
     langCodeDefault: validated.source,
     languages: [...validated.languages],
     nameEnum: CONFIG_DEFAULT.nameEnum,
