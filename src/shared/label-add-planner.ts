@@ -1,4 +1,8 @@
-import type {ILabelAddPlan, ILabelAddProjectSnapshot} from './entities/label-add.js'
+import type {
+  ILabelAddConflict,
+  ILabelAddPlan,
+  ILabelAddProjectSnapshot,
+} from './entities/label-add.js'
 
 import {inspectSyncPath} from './sync.repository.js'
 
@@ -7,6 +11,32 @@ export interface ILabelAddPlanInput {
   key: string
   source: string
   sourceText: string
+}
+
+export interface ILabelAddKeyInspection {
+  readonly conflicts: readonly ILabelAddConflict[]
+  readonly existing: readonly string[]
+}
+
+export const inspectLabelAddKey = (
+  snapshot: ILabelAddProjectSnapshot,
+  key: string,
+): ILabelAddKeyInspection => {
+  const conflicts: ILabelAddConflict[] = []
+  const existing: string[] = []
+
+  for (const dictionary of snapshot.dictionaries) {
+    const state = inspectSyncPath(dictionary.dictionary, key)
+    if (state.kind === 'leaf') existing.push(dictionary.code)
+    else if (state.kind !== 'missing') {
+      conflicts.push({key, language: dictionary.code, reason: 'path_conflict'})
+    }
+  }
+
+  return Object.freeze({
+    conflicts: Object.freeze(conflicts),
+    existing: Object.freeze(existing),
+  })
 }
 
 const create = (

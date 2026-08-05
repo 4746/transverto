@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
-import {LabelAddPlanner} from '../../dist/shared/label-add-planner.js'
+import {
+  inspectLabelAddKey,
+  LabelAddPlanner,
+} from '../../dist/shared/label-add-planner.js'
 import {createConfig} from '../helpers/project-fixture.mjs'
 
 const snapshotFor = dictionaries => {
@@ -82,4 +85,40 @@ test('rejects a source language outside the configured snapshot', () => {
     source: 'de',
     sourceText: 'Hallo Welt!',
   }), /Source language "de" is not configured/)
+})
+
+test('inspects an exact key across every configured language', () => {
+  const inspection = inspectLabelAddKey(snapshotFor({
+    de: {title: {data: 'Daten'}},
+    en: {},
+    uk: {title: {data: 'Дані'}},
+  }), 'title.data')
+
+  assert.deepEqual(inspection.existing, ['uk', 'de'])
+  assert.deepEqual(inspection.conflicts, [])
+})
+
+test('does not report siblings as an existing exact key', () => {
+  const inspection = inspectLabelAddKey(snapshotFor({
+    de: {},
+    en: {title: {other: 'Other'}},
+    uk: {},
+  }), 'title.data')
+
+  assert.deepEqual(inspection.existing, [])
+  assert.deepEqual(inspection.conflicts, [])
+})
+
+test('reports incompatible paths separately from existing leaves', () => {
+  const inspection = inspectLabelAddKey(snapshotFor({
+    de: {title: {data: {nested: 'value'}}},
+    en: {title: 'Title'},
+    uk: {title: {data: 'Дані'}},
+  }), 'title.data')
+
+  assert.deepEqual(inspection.existing, ['uk'])
+  assert.deepEqual(inspection.conflicts, [
+    {key: 'title.data', language: 'en', reason: 'path_conflict'},
+    {key: 'title.data', language: 'de', reason: 'path_conflict'},
+  ])
 })
