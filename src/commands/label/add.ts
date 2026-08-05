@@ -3,15 +3,18 @@ import chalk from "chalk";
 import path from 'node:path'
 
 import type {
+  ILabelAddConflict,
+  ILabelAddProjectSnapshot,
+} from '../../shared/entities/label-add.js'
+import type {
   ITranslationBatchOutput,
   ITranslationFailed,
 } from '../../shared/entities/translation-batch.js'
-import type {ILabelAddConflict} from '../../shared/entities/label-add.js'
 
 import {CTV_TRANSLATION_CACHE_FILE} from '../../shared/constants.js'
 import {LabelAddExecutor} from '../../shared/label-add-executor.js'
-import {inspectLabelAddKey, LabelAddPlanner} from '../../shared/label-add-planner.js'
 import {confirmLabelAddOverwrite} from '../../shared/label-add-overwrite.prompt.js'
+import {inspectLabelAddKey, LabelAddPlanner} from '../../shared/label-add-planner.js'
 import {LabelAddRepository} from '../../shared/label-add.repository.js'
 import {LabelBaseCommand} from "../../shared/label-base.command.js";
 import {resolveTranslationBatchConfig} from '../../shared/translation-batch.config.js'
@@ -99,19 +102,7 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
     let snapshot
     try {
       snapshot = await LabelAddRepository.load(this.cliConfig)
-      const inspection = inspectLabelAddKey(snapshot, this.label)
-      if (inspection.conflicts.length > 0) {
-        throw new Error(this.pathConflictMessage(inspection.conflicts))
-      }
-
-      if (inspection.existing.length > 0) {
-        const accepted = await confirmLabelAddOverwrite({
-          interactive: !this.silent && Boolean(process.stdin.isTTY && process.stdout.isTTY),
-          key: this.label,
-          output: process.stdout,
-        })
-        if (!accepted) return
-      }
+      if (!await this.confirmExistingLabel(snapshot)) return
 
       this.translation = await this.getTranslation(flags.translation, this.fromLangCode)
 
@@ -174,6 +165,20 @@ export default class LabelAdd extends LabelBaseCommand<typeof LabelAdd> {
     }
 
     this.log(chalk.cyan(`Done!`));
+  }
+
+  private async confirmExistingLabel(snapshot: ILabelAddProjectSnapshot): Promise<boolean> {
+    const inspection = inspectLabelAddKey(snapshot, this.label)
+    if (inspection.conflicts.length > 0) {
+      throw new Error(this.pathConflictMessage(inspection.conflicts))
+    }
+
+    if (inspection.existing.length === 0) return true
+    return confirmLabelAddOverwrite({
+      interactive: !this.silent && Boolean(process.stdin.isTTY && process.stdout.isTTY),
+      key: this.label,
+      output: process.stdout,
+    })
   }
 
   private errorMessage(error: unknown): string {
