@@ -1,4 +1,8 @@
 import {
+  ILabelSuggestionRequest,
+  LabelSuggestionEngine,
+} from '../entities/label-suggestion.js'
+import {
   TranslationError,
   TTranslationErrorCategory,
 } from '../entities/translation-error.js'
@@ -9,6 +13,7 @@ import {
   ITranslationRequestPlan,
   TranslationEngine,
 } from '../entities/translation.engine.js'
+import {parseLabelSuggestionCompletion} from '../label-suggestion-response.js'
 import {parseMultiLanguageCompletion} from '../multi-language-response.js'
 
 type TFetch = typeof fetch
@@ -35,6 +40,11 @@ interface IChatCompletionRequest {
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const DEFAULT_LABEL_SUGGESTION_PROMPT = [
+  'You create concise English localization keys for web user interfaces.',
+  'Prefer conventional UI terminology and useful variations of the input meaning.',
+].join('\n')
 
 const reasoningRequest = (
   profile: IResolvedEngineProfile,
@@ -82,6 +92,21 @@ const buildBatchSystemPrompt = ({from, key, sourceText, targets}: IMultiLanguage
   'Do not return Markdown fences, explanations, metadata, nested objects, arrays, or unrequested language codes.',
 ].join('\n')
 
+const buildLabelSuggestionPrompt = ({
+  count,
+  labelValidation,
+  text,
+}: ILabelSuggestionRequest): string => [
+  `Input text: ${text}`,
+  '',
+  'Understand the input in its original language and translate its meaning internally when needed.',
+  `Return ${count} unique English localization key suggestions.`,
+  'Every suggestion must use English words.',
+  `Every suggestion must match this regular expression: ${labelValidation}`,
+  'Return exactly one JSON array containing only string values.',
+  'Do not return Markdown fences, explanations, labels, metadata, or any text outside the JSON array.',
+].join('\n')
+
 const providerMessage = (body: unknown): string | undefined => {
   if (!isObject(body) || !isObject(body.error)) return
   return typeof body.error.message === 'string' ? body.error.message : undefined
@@ -96,11 +121,19 @@ const statusCategory = (status: number): TTranslationErrorCategory => {
   return 'provider_response'
 }
 
-export class OpenAICompatibleEngine implements TranslationEngine {
+export class OpenAICompatibleEngine implements LabelSuggestionEngine, TranslationEngine {
   constructor(
     private readonly profile: IResolvedEngineProfile,
     private readonly fetchImplementation: TFetch = fetch,
   ) {}
+
+  async suggestLabels(request: ILabelSuggestionRequest): Promise<string[]> {
+    const content = await this.completion(
+      this.profile.labelSuggestionPrompt ?? DEFAULT_LABEL_SUGGESTION_PROMPT,
+      buildLabelSuggestionPrompt(request),
+    )
+    return parseLabelSuggestionCompletion(content)
+  }
 
   async translate(request: ITranslationRequestPlan): Promise<string> {
     return this.completion(this.profile.systemPrompt ?? '', buildSystemPrompt(request))

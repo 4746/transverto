@@ -40,6 +40,8 @@ export const createConfig = ({
   engine,
   engines,
   fallback,
+  labelSuggestionCount: 5,
+  labelSuggestionShowInvalid: false,
   labelValidation: String.raw`^[a-z0-9\.\-\_]{3,100}$`,
   langCodeDefault: source,
   languages,

@@ -10,6 +10,7 @@ test('engine profile preserves request options through validation and resolution
   const engines = validateEngineConfiguration('fixture', {
     fixture: {
       baseUrl: 'http://fixture.test/v1',
+      labelSuggestionPrompt: '  Label-only system prompt.  ',
       model: 'fixture-model',
       provider: 'openai-compatible',
       reasoning: false,
@@ -20,6 +21,7 @@ test('engine profile preserves request options through validation and resolution
 
   assert.deepEqual(engines.fixture, {
     baseUrl: 'http://fixture.test/v1',
+    labelSuggestionPrompt: '  Label-only system prompt.  ',
     model: 'fixture-model',
     provider: 'openai-compatible',
     reasoning: false,
@@ -34,6 +36,7 @@ test('engine profile preserves request options through validation and resolution
     {requireCredentials: false},
   )
   assert.equal(resolved.systemPrompt, '  Keep this spacing.  ')
+  assert.equal(resolved.labelSuggestionPrompt, '  Label-only system prompt.  ')
   assert.equal(resolved.temperature, 0.25)
   assert.equal(resolved.reasoning, false)
 })
@@ -57,6 +60,7 @@ test('engine profile leaves request options absent for old configurations', () =
 
 test('engine profile rejects invalid request options', () => {
   const invalid = [
+    ['labelSuggestionPrompt', 42, /labelSuggestionPrompt must be a string/],
     ['systemPrompt', 42, /systemPrompt must be a string/],
     ['temperature', Number.NaN, /temperature must be a finite number from 0 through 2/],
     ['temperature', -0.01, /temperature must be a finite number from 0 through 2/],

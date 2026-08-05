@@ -53,11 +53,14 @@ provider can coexist.
   },
   "engine": "lmstudio",
   "fallback": "openrouter",
+  "labelSuggestionCount": 5,
+  "labelSuggestionShowInvalid": false,
   "engines": {
     "lmstudio": {
       "provider": "lmstudio",
       "baseUrl": "http://localhost:1234/v1",
       "model": "google/gemma-4-12b-qat",
+      "labelSuggestionPrompt": "Suggest concise localization keys for web interfaces.",
       "systemPrompt": "You are a concise translation assistant.",
       "temperature": 0.2,
       "reasoning": false,
@@ -91,6 +94,22 @@ reasoning for that profile.
 Reasoning parameters are mapped to each supported provider's API dialect.
 Some models require reasoning and may reject attempts to disable it; Transverto
 reports that provider error and does not silently retry with reasoning enabled.
+
+`ctv label:suggest TEXT` uses the active engine to propose English localization
+keys for text in any language. `--engine` overrides the active profile.
+Suggestion count is resolved from `--count`, then `labelSuggestionCount`, then
+the built-in default `5`; any positive integer is accepted. Each engine may set
+the label-only system message with `labelSuggestionPrompt`.
+
+Suggestions are always checked against `labelValidation`. Invalid proposals are
+hidden by default. Set `labelSuggestionShowInvalid` to `true` to append them
+below the valid list and expose them as `invalidSuggestions` in JSON output.
+
+```shell
+ctv label:suggest "Обрати тип QR-коду"
+ctv label:suggest "Обрати тип QR-коду" --count 10 --engine lmstudio
+ctv label:suggest "Обрати тип QR-коду" --json
+```
 
 Supported providers:
 
@@ -465,13 +484,14 @@ cache file produces an error and is never silently replaced.
 * [`ctv help [COMMAND]`](#ctv-help-command)
 * [`ctv import:csv FILE`](#ctv-importcsv-file)
 * [`ctv init`](#ctv-init)
-* [`ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]`](#ctv-label-add-delete-get-move-rename-replace-sync)
+* [`ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SUGGEST] [SYNC]`](#ctv-label-add-delete-get-move-rename-replace-suggest-sync)
 * [`ctv label:add [LABEL]`](#ctv-labeladd-label)
 * [`ctv label:delete PATTERN`](#ctv-labeldelete-pattern)
 * [`ctv label:get [QUERY]`](#ctv-labelget-query)
 * [`ctv label:move OLD-PREFIX NEW-PREFIX`](#ctv-labelmove-old-prefix-new-prefix)
 * [`ctv label:rename OLD NEW`](#ctv-labelrename-old-new)
 * [`ctv label:replace LABEL`](#ctv-labelreplace-label)
+* [`ctv label:suggest TEXT`](#ctv-labelsuggest-text)
 * [`ctv label:sync`](#ctv-labelsync)
 * [`ctv language:add CODE`](#ctv-languageadd-code)
 * [`ctv language:list`](#ctv-languagelist)
@@ -507,7 +527,7 @@ EXAMPLES
   $ ctv cache:clear --force
 ```
 
-_See code: [src/commands/cache/clear.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/cache/clear.ts)_
+_See code: [src/commands/cache/clear.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/cache/clear.ts)_
 
 ## `ctv cache:list`
 
@@ -535,7 +555,7 @@ EXAMPLES
   $ ctv cache:list --json
 ```
 
-_See code: [src/commands/cache/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/cache/list.ts)_
+_See code: [src/commands/cache/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/cache/list.ts)_
 
 ## `ctv cache:prune`
 
@@ -557,7 +577,7 @@ EXAMPLES
   $ ctv cache:prune --json
 ```
 
-_See code: [src/commands/cache/prune.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/cache/prune.ts)_
+_See code: [src/commands/cache/prune.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/cache/prune.ts)_
 
 ## `ctv doctor`
 
@@ -583,7 +603,7 @@ EXAMPLES
   $ ctv doctor --check-engine --timeout 5000
 ```
 
-_See code: [src/commands/doctor.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/doctor.ts)_
+_See code: [src/commands/doctor.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/doctor.ts)_
 
 ## `ctv export:csv [LANGCODE]`
 
@@ -621,7 +641,7 @@ EXAMPLES
   $ ctv export:csv --eol=lf
 ```
 
-_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/export/csv.ts)_
+_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/export/csv.ts)_
 
 ## `ctv help [COMMAND]`
 
@@ -682,7 +702,7 @@ EXAMPLES
   $ ctv import:csv translations.csv --existing overwrite --empty clear --write
 ```
 
-_See code: [src/commands/import/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/import/csv.ts)_
+_See code: [src/commands/import/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/import/csv.ts)_
 
 ## `ctv init`
 
@@ -726,15 +746,15 @@ EXAMPLES
   $ ctv init --force
 ```
 
-_See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/init.ts)_
+_See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/init.ts)_
 
-## `ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]`
+## `ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SUGGEST] [SYNC]`
 
 Label management command.
 
 ```
 USAGE
-  $ ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SYNC]
+  $ ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SUGGEST] [SYNC]
 
 ARGUMENTS
   [ADD]      Adds a new label.
@@ -743,13 +763,14 @@ ARGUMENTS
   [MOVE]     Moves a label branch.
   [RENAME]   Renames a label.
   [REPLACE]  Replaces a label with the given value.
+  [SUGGEST]  Suggests English label keys.
   [SYNC]     A command to update labels synchronously.
 
 DESCRIPTION
   Label management command.
 ```
 
-_See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/index.ts)_
+_See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/index.ts)_
 
 ## `ctv label:add [LABEL]`
 
@@ -781,7 +802,7 @@ EXAMPLES
   $ ctv label:add "hello.world" -t "Hello World!"
 ```
 
-_See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/add.ts)_
+_See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/add.ts)_
 
 ## `ctv label:delete PATTERN`
 
@@ -817,7 +838,7 @@ EXAMPLES
   $ ctv label:delete "admin.*" --force
 ```
 
-_See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/delete.ts)_
+_See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/delete.ts)_
 
 ## `ctv label:get [QUERY]`
 
@@ -857,7 +878,7 @@ EXAMPLES
   $ ctv label:get home --mode prefix --limit 10
 ```
 
-_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/get.ts)_
+_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/get.ts)_
 
 ## `ctv label:move OLD-PREFIX NEW-PREFIX`
 
@@ -894,7 +915,7 @@ EXAMPLES
   $ ctv label:move old.section new.section --overwrite --write --json
 ```
 
-_See code: [src/commands/label/move.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/move.ts)_
+_See code: [src/commands/label/move.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/move.ts)_
 
 ## `ctv label:rename OLD NEW`
 
@@ -931,7 +952,7 @@ EXAMPLES
   $ ctv label:rename old.key new.key --overwrite --write --json
 ```
 
-_See code: [src/commands/label/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/rename.ts)_
+_See code: [src/commands/label/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/rename.ts)_
 
 ## `ctv label:replace LABEL`
 
@@ -959,7 +980,38 @@ EXAMPLES
   $ ctv label:replace hello.world -t="Hello world!!!" -fen
 ```
 
-_See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/replace.ts)_
+_See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/replace.ts)_
+
+## `ctv label:suggest TEXT`
+
+Suggest valid English label keys with an AI model
+
+```
+USAGE
+  $ ctv label:suggest TEXT [--json] [--count <value>] [--engine <value>]
+
+ARGUMENTS
+  TEXT  text to turn into English label keys
+
+FLAGS
+  --count=<value>   number of suggestions to request
+  --engine=<value>  named engine profile
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Suggest valid English label keys with an AI model
+
+EXAMPLES
+  $ ctv label:suggest "Обрати тип QR-коду"
+
+  $ ctv label:suggest "Select QR code type" --count 10
+
+  $ ctv label:suggest "Обрати тип QR-коду" --engine lmstudio --json
+```
+
+_See code: [src/commands/label/suggest.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/suggest.ts)_
 
 ## `ctv label:sync`
 
@@ -1003,7 +1055,7 @@ EXAMPLES
   $ ctv label:sync --auto-translate --no-fallback --dry-run
 ```
 
-_See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/label/sync.ts)_
+_See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/sync.ts)_
 
 ## `ctv language:add CODE`
 
@@ -1028,7 +1080,7 @@ EXAMPLES
   $ ctv language:add de --copy-from en
 ```
 
-_See code: [src/commands/language/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/language/add.ts)_
+_See code: [src/commands/language/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/add.ts)_
 
 ## `ctv language:list`
 
@@ -1050,7 +1102,7 @@ EXAMPLES
   $ ctv language:list --json
 ```
 
-_See code: [src/commands/language/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/language/list.ts)_
+_See code: [src/commands/language/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/list.ts)_
 
 ## `ctv language:remove CODE`
 
@@ -1084,7 +1136,7 @@ EXAMPLES
   $ ctv language:remove uk --delete-file --force
 ```
 
-_See code: [src/commands/language/remove.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/language/remove.ts)_
+_See code: [src/commands/language/remove.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/remove.ts)_
 
 ## `ctv language:rename FROM TO`
 
@@ -1105,7 +1157,7 @@ EXAMPLES
   $ ctv language:rename en en-US
 ```
 
-_See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/language/rename.ts)_
+_See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/rename.ts)_
 
 ## `ctv status`
 
@@ -1141,7 +1193,7 @@ EXAMPLES
   $ ctv status --fail-on warning
 ```
 
-_See code: [src/commands/status.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/status.ts)_
+_See code: [src/commands/status.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/status.ts)_
 
 ## `ctv translate [TEXT]`
 
@@ -1199,7 +1251,7 @@ EXAMPLES
   $ ctv translate --key home.title --to uk --write --confirm
 ```
 
-_See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.3/src/commands/translate.ts)_
+_See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/translate.ts)_
 <!-- commandsstop -->
 
 ---
@@ -1227,10 +1279,13 @@ _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v
     "lmstudio": {
       "provider": "lmstudio",
       "baseUrl": "http://localhost:1234/v1",
+      "labelSuggestionPrompt": "Suggest concise localization keys for web interfaces.",
       "model": "google/gemma-4-12b-qat",
       "timeoutMs": 30000
     }
   },
+  "labelSuggestionCount": 5,
+  "labelSuggestionShowInvalid": false,
   "labelValidation": "^[a-z0-9\\.\\-\\_]{3,100}$",
   "langCodeDefault": "en",
   "languages": [
