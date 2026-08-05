@@ -22,7 +22,8 @@ dictionary.
 
 ## Interactive Behavior
 
-When the exact key exists and stdin and stdout are TTYs, the command prompts:
+When the exact key exists, `--silent` is absent, and stdin and stdout are TTYs,
+the command prompts:
 
 ```text
 Key "title.data" already exists. Overwrite it?
@@ -42,11 +43,11 @@ text.
 
 ## Non-Interactive Behavior
 
-When the exact key exists and either stdin or stdout is not a TTY, the command
-fails with exit code 2 and a message explaining that overwriting the existing
-key requires interactive confirmation. This applies to `--silent`, CI, piped
-input, and other non-interactive execution. No bypass or force flag is added in
-this change.
+When the exact key exists and `--silent` is set or either stdin or stdout is not
+a TTY, the command fails with exit code 2 and a message explaining that
+overwriting the existing key requires interactive confirmation. This applies
+to CI, piped input, and other non-interactive execution. No bypass or force
+flag is added in this change.
 
 The failure occurs before translation-engine calls, cache writes, or project
 file writes.
