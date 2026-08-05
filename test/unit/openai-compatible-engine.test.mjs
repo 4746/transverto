@@ -32,6 +32,35 @@ const requestBodyFor = async (overrides = {}, batch = false) => {
   return requests[0]
 }
 
+const suggestionRequestBodyFor = async (overrides = {}) => {
+  const requests = []
+  const fetchImplementation = async (_url, init) => {
+    requests.push(JSON.parse(init.body))
+    return new Response(JSON.stringify({
+      choices: [{message: {content: '["select_qr_code_type"]'}}],
+    }), {status: 200})
+  }
+
+  const engine = new OpenAICompatibleEngine({
+    baseUrl: 'http://fixture.test/v1',
+    model: 'fixture-model',
+    name: 'fixture',
+    provider: 'openai-compatible',
+    timeoutMs: 1000,
+    ...overrides,
+  }, fetchImplementation)
+
+  const suggestions = await engine.suggestLabels({
+    count: 7,
+    labelValidation: String.raw`^[a-z0-9\._]{2,100}$`,
+    text: 'Обрати тип QR-коду',
+  })
+
+  assert.deepEqual(suggestions, ['select_qr_code_type'])
+  assert.equal(requests.length, 1)
+  return requests[0]
+}
+
 test('old profile keeps empty system message, user translation task, and temperature zero', async () => {
   const body = await requestBodyFor()
   assert.equal(body.messages[0].role, 'system')
@@ -56,6 +85,26 @@ test('profile system prompt and temperature reach single and batch requests', as
       ? /Return exactly one JSON object/
       : /Return only the translated source text/)
   }
+})
+
+test('label suggestion request uses its feature prompt and strict output instructions', async () => {
+  const body = await suggestionRequestBodyFor({
+    labelSuggestionPrompt: 'Label-only prompt',
+    systemPrompt: 'Translation-only prompt',
+  })
+
+  assert.equal(body.messages[0].content, 'Label-only prompt')
+  assert.match(body.messages[1].content, /Обрати тип QR-коду/)
+  assert.match(body.messages[1].content, /7 unique/)
+  assert.match(body.messages[1].content, /English/)
+  assert.match(body.messages[1].content, /\^\[a-z0-9/)
+  assert.match(body.messages[1].content, /JSON array/)
+})
+
+test('label suggestion request has a built-in system prompt independent of translation', async () => {
+  const body = await suggestionRequestBodyFor({systemPrompt: 'Translation-only prompt'})
+  assert.notEqual(body.messages[0].content, '')
+  assert.notEqual(body.messages[0].content, 'Translation-only prompt')
 })
 
 test('reasoning false maps to each provider dialect', async () => {
