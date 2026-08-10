@@ -1,5 +1,6 @@
 import type {ITranslationBatchConfig} from './entities/translation-batch.js'
 
+import {CTV_CONFIG_SCHEMA_URL} from './constants.js'
 import {ITranslationCacheConfig} from './entities/translation-cache.js'
 import {IEngineProfile} from "./entities/translation.engine.js";
 import {TRANSLATION_BATCH_DEFAULTS} from './translation-batch.config.js'
@@ -10,6 +11,7 @@ export const LABEL_SUGGESTION_COUNT_DEFAULT = 5;
 export const LABEL_SUGGESTION_SHOW_INVALID_DEFAULT = false;
 
 export interface IConfig {
+  $schema?: string;
   /**
    * The base path where is your translation json files
    */
@@ -40,6 +42,7 @@ export interface IConfig {
 }
 
 export const CONFIG_DEFAULT: IConfig & {batch: ITranslationBatchConfig} = {
+  $schema: CTV_CONFIG_SCHEMA_URL,
   /**
    * The base path where is your translation json files
    */
