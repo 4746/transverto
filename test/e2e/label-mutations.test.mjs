@@ -305,6 +305,15 @@ test('label rename exposes the same dry-run and write plan', async testContext =
   })
 })
 
+test('label rename requires a target key when running non-interactively', async testContext => {
+  const project = await createProject(testContext, {dictionaries: dictionaries()})
+
+  const result = await runCli(project, ['label:rename', 'account.profile.name'])
+
+  assert.equal(result.exitCode, 2)
+  assert.match(result.stderr, /Missing target key.*non-interactively/)
+})
+
 test('label move relocates a complete branch atomically', async testContext => {
   const {project, report} = await previewAndWrite(testContext, [
     'label:move', 'account.profile', 'user.profile',
