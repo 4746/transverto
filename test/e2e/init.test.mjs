@@ -24,7 +24,7 @@ test('init creates a minimal project with configured language files', async test
   const configText = await fs.promises.readFile(project.configFile, 'utf8')
   const config = JSON.parse(configText)
   assert.equal(config.$schema, CTV_CONFIG_SCHEMA_URL)
-  assert.match(configText, /^\{\n  "\$schema":/)
+  assert.match(configText, /^\{\n {2}"\$schema":/)
   assert.deepEqual(config.languages, ['en', 'uk'])
   assert.equal(config.langCodeDefault, 'en')
   assert.deepEqual(await readJson(project.file('en')), {})

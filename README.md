@@ -1259,6 +1259,7 @@ _See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v
 ### Example config file `.ctv.config.json`
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/4746/transverto/main/schema/ctv.config.schema.json",
   "basePath": "dist/i18n",
   "basePathEnum": "dist/i18n/language.ts",
   "batch": {

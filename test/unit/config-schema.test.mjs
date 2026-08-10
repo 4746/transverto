@@ -1,10 +1,9 @@
+import Ajv2020 from 'ajv/dist/2020.js'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import {test} from 'node:test'
 import {fileURLToPath} from 'node:url'
-
-import Ajv2020 from 'ajv/dist/2020.js'
 
 import {CTV_CONFIG_SCHEMA_URL} from '../../dist/shared/constants.js'
 import {createConfig} from '../helpers/project-fixture.mjs'
