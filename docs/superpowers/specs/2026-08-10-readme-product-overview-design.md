@@ -64,10 +64,13 @@ Complete the compact workflow using the simple-language project:
 
 ```shell
 npx ctv label:add home.title --text "Welcome"
+npx ctv label:get home --mode prefix
+npx ctv label:suggest "Welcome to your dashboard" --count 5
 npx ctv translate --key home.title --to uk --write
+npx ctv label:delete home.legacy --dry-run
 ```
 
-Follow it with one sentence directing readers to `Usage`, `AI engine profiles`, and `Commands` for setup and complete options. Do not duplicate engine configuration or command reference content in the overview.
+Explain immediately after the block that `label:suggest` requires a configured AI engine profile and that the `label:delete` example is preview-only because it uses `--dry-run`. Then direct readers to `Usage`, `AI engine profiles`, and `Commands` for setup and complete options. Do not duplicate engine configuration or command reference content in the overview.
 
 ## Verification
 
