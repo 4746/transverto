@@ -1,13 +1,62 @@
 CLI transverto
 =================
 
-Label management command.
+Transverto is a CLI for managing JSON translation dictionaries, keeping languages synchronized, and translating content with local or hosted AI models. It combines safe key and language operations with validation, previews, atomic writes, status reporting, CSV exchange, and generated TypeScript types.
 
 [![NPM version](http://img.shields.io/npm/v/@cli107/transverto.svg?style=flat-square)](http://npmjs.org/package/@cli107/transverto)
 [![GitHub license](https://img.shields.io/github/license/4746/transverto)](https://github.com/4746/transverto/blob/main/LICENSE)
 
+# What Transverto does
+
+- Manage translation keys and configured languages across JSON dictionaries.
+- Translate text or dictionary keys with LM Studio, Google AI, OpenRouter, or another OpenAI-compatible API.
+- Preview changes and protect writes with dry runs, atomic updates, conflict detection, and placeholder validation.
+- Search labels, inspect translation status, diagnose projects, and synchronize missing values safely.
+- Import and export translations through CSV workflows with explicit conflict policies.
+- Cache translation results and generate TypeScript language/key types from the source dictionary.
+
+# Typical workflow
+
+Install Transverto in your project:
+
+```shell
+npm install --save-dev @cli107/transverto
+```
+
+Initialize a project with simple language codes:
+
+```shell
+npx ctv init --minimal \
+  --languages en,es,de,fr,uk \
+  --source en
+```
+
+Or use regional locale codes when translations differ by country or region:
+
+```shell
+npx ctv init --minimal \
+  --languages en-US,en-GB,es-ES,es-419,de-DE,fr-FR,pt-BR,pt-PT,uk-UA \
+  --source en-US
+```
+
+Transverto supports both styles, so a project can keep general translations or maintain country-specific variants.
+
+```shell
+npx ctv label:add home.title --translation "Welcome"
+npx ctv label:get home --mode prefix
+npx ctv label:suggest "Welcome to your dashboard" --count 5
+npx ctv translate --key home.title --to uk --write
+npx ctv label:delete home.legacy --dry-run
+```
+
+`label:suggest` requires a configured AI engine profile. The `label:delete` example uses `--dry-run`, so it previews the deletion without changing files.
+
+Continue with [Usage](#usage), [AI engine profiles](#ai-engine-profiles), or the complete [Commands](#commands) reference.
+
 
 <!-- toc -->
+* [What Transverto does](#what-transverto-does)
+* [Typical workflow](#typical-workflow)
 * [Usage](#usage)
 * [AI engine profiles](#ai-engine-profiles)
 * [PowerShell](#powershell)
