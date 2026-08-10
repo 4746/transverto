@@ -8,8 +8,8 @@ Make the top of `README.md` explain within one minute what Transverto is, which 
 
 Keep the title and badges at the top. Replace the current `Label management command.` sentence with a concise product description. After the badges and before the generated table of contents, add two sections:
 
-1. `## What Transverto does`
-2. `## Typical workflow`
+1. `# What Transverto does`
+2. `# Typical workflow`
 
 The existing detailed sections remain unchanged. Add both new sections to the table of contents.
 
@@ -23,7 +23,7 @@ The description should identify the artifact format, core workflow, AI support, 
 
 ## Feature overview
 
-`## What Transverto does` contains six scan-friendly bullets:
+`# What Transverto does` contains six scan-friendly bullets:
 
 - Manage translation keys and configured languages across JSON dictionaries.
 - Translate text or dictionary keys with LM Studio, Google AI, OpenRouter, or another OpenAI-compatible API.

@@ -25,7 +25,7 @@
 - Modify: `README.md:1-35`
 
 **Interfaces:**
-- Produces: hand-written `## What Transverto does` and `## Typical workflow` sections.
+- Produces: hand-written `# What Transverto does` and `# Typical workflow` sections.
 - Preserves: `<!-- toc -->`, `<!-- tocstop -->`, `<!-- commands -->`, and `<!-- commandsstop -->` generator markers.
 
 - [ ] **Step 1: Prove the overview is currently absent**
@@ -34,7 +34,7 @@ Run:
 
 ```powershell
 $readme = Get-Content -Raw README.md
-if ($readme.Contains('## What Transverto does') -or $readme.Contains('## Typical workflow')) { exit 1 }
+if ($readme.Contains('# What Transverto does') -or $readme.Contains('# Typical workflow')) { exit 1 }
 if (-not $readme.Contains('Label management command.')) { exit 1 }
 ```
 
@@ -47,7 +47,7 @@ Keep the title and badges, replace `Label management command.`, and insert this 
 ````markdown
 Transverto is a CLI for managing JSON translation dictionaries, keeping languages synchronized, and translating content with local or hosted AI models. It combines safe key and language operations with validation, previews, atomic writes, status reporting, CSV exchange, and generated TypeScript types.
 
-## What Transverto does
+# What Transverto does
 
 - Manage translation keys and configured languages across JSON dictionaries.
 - Translate text or dictionary keys with LM Studio, Google AI, OpenRouter, or another OpenAI-compatible API.
@@ -56,7 +56,7 @@ Transverto is a CLI for managing JSON translation dictionaries, keeping language
 - Import and export translations through CSV workflows with explicit conflict policies.
 - Cache translation results and generate TypeScript language/key types from the source dictionary.
 
-## Typical workflow
+# Typical workflow
 
 Install Transverto in your project:
 
@@ -130,8 +130,8 @@ Run:
 ```powershell
 $readme = Get-Content -Raw README.md
 foreach ($text in @(
-  '## What Transverto does',
-  '## Typical workflow',
+  '# What Transverto does',
+  '# Typical workflow',
   '--languages en,es,de,fr,uk',
   '--languages en-US,en-GB,es-ES,es-419,de-DE,fr-FR,pt-BR,pt-PT,uk-UA',
   'npx ctv label:get home --mode prefix',
