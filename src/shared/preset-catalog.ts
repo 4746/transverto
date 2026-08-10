@@ -3,9 +3,8 @@ import {fileURLToPath} from 'node:url'
 
 import type {
   IPresetProviderDefinition,
-  TPresetCommandId,
-  TPresetProviderId,
 } from './entities/preset.js'
+export type {TPresetCommandId, TPresetProviderId} from './entities/preset.js'
 
 const PRESETS_ROOT = fileURLToPath(new URL('../../presets/', import.meta.url))
 
@@ -38,7 +37,5 @@ export const resolvePresetAssetPath = (providerId: string, commandId: string): s
   const provider = getPresetProvider(providerId)
   const command = provider.commands.find(item => item.id === commandId)
   if (!command) throw new Error(`Unknown preset command: ${commandId}.`)
-  return path.join(PRESETS_ROOT, provider.id as TPresetProviderId, command.assetFile)
+  return path.join(PRESETS_ROOT, provider.id, command.assetFile)
 }
-
-export type {TPresetCommandId, TPresetProviderId}
