@@ -523,6 +523,22 @@ entries. Use `ctv cache:list` for statistics and filtering, `ctv cache:clear`
 for selective removal, and `ctv cache:prune` for TTL/LRU maintenance. A corrupt
 cache file produces an error and is never silently replaced.
 
+## JetBrains run configurations
+
+Run `ctv preset`, choose **JetBrains**, and keep or adjust the preselected
+command list. Transverto creates shared `.run/tl_*.run.xml` configurations and
+adds `"ctv": "ctv"` to the project npm scripts when needed.
+
+In a JetBrains IDE, select a translation key or source phrase, press Shift
+twice, choose a configuration such as `tl:get` or `tl:suggest`, and run it with
+Shift+Enter. `tl:rename` uses the selected text as the old key and asks for the
+new key in the terminal.
+
+When selected run-configuration files already exist, one confirmation controls
+all overwrites. Answering No preserves those files and still installs
+non-conflicting selections. An existing nonstandard `scripts.ctv` value is
+never replaced.
+
 # Commands
 <!-- commands -->
 * [`ctv cache:clear`](#ctv-cacheclear)
@@ -538,7 +554,7 @@ cache file produces an error and is never silently replaced.
 * [`ctv label:delete PATTERN`](#ctv-labeldelete-pattern)
 * [`ctv label:get [QUERY]`](#ctv-labelget-query)
 * [`ctv label:move OLD-PREFIX NEW-PREFIX`](#ctv-labelmove-old-prefix-new-prefix)
-* [`ctv label:rename OLD NEW`](#ctv-labelrename-old-new)
+* [`ctv label:rename OLD [NEW]`](#ctv-labelrename-old-new)
 * [`ctv label:replace LABEL`](#ctv-labelreplace-label)
 * [`ctv label:suggest TEXT`](#ctv-labelsuggest-text)
 * [`ctv label:sync`](#ctv-labelsync)
@@ -546,6 +562,7 @@ cache file produces an error and is never silently replaced.
 * [`ctv language:list`](#ctv-languagelist)
 * [`ctv language:remove CODE`](#ctv-languageremove-code)
 * [`ctv language:rename FROM TO`](#ctv-languagerename-from-to)
+* [`ctv preset`](#ctv-preset)
 * [`ctv status`](#ctv-status)
 * [`ctv translate [TEXT]`](#ctv-translate-text)
 
@@ -576,7 +593,7 @@ EXAMPLES
   $ ctv cache:clear --force
 ```
 
-_See code: [src/commands/cache/clear.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/cache/clear.ts)_
+_See code: [src/commands/cache/clear.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/cache/clear.ts)_
 
 ## `ctv cache:list`
 
@@ -604,7 +621,7 @@ EXAMPLES
   $ ctv cache:list --json
 ```
 
-_See code: [src/commands/cache/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/cache/list.ts)_
+_See code: [src/commands/cache/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/cache/list.ts)_
 
 ## `ctv cache:prune`
 
@@ -626,7 +643,7 @@ EXAMPLES
   $ ctv cache:prune --json
 ```
 
-_See code: [src/commands/cache/prune.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/cache/prune.ts)_
+_See code: [src/commands/cache/prune.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/cache/prune.ts)_
 
 ## `ctv doctor`
 
@@ -652,7 +669,7 @@ EXAMPLES
   $ ctv doctor --check-engine --timeout 5000
 ```
 
-_See code: [src/commands/doctor.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/doctor.ts)_
+_See code: [src/commands/doctor.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/doctor.ts)_
 
 ## `ctv export:csv [LANGCODE]`
 
@@ -690,7 +707,7 @@ EXAMPLES
   $ ctv export:csv --eol=lf
 ```
 
-_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/export/csv.ts)_
+_See code: [src/commands/export/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/export/csv.ts)_
 
 ## `ctv help [COMMAND]`
 
@@ -751,7 +768,7 @@ EXAMPLES
   $ ctv import:csv translations.csv --existing overwrite --empty clear --write
 ```
 
-_See code: [src/commands/import/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/import/csv.ts)_
+_See code: [src/commands/import/csv.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/import/csv.ts)_
 
 ## `ctv init`
 
@@ -795,7 +812,7 @@ EXAMPLES
   $ ctv init --force
 ```
 
-_See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/init.ts)_
+_See code: [src/commands/init.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/init.ts)_
 
 ## `ctv label [ADD] [DELETE] [GET] [MOVE] [RENAME] [REPLACE] [SUGGEST] [SYNC]`
 
@@ -819,7 +836,7 @@ DESCRIPTION
   Label management command.
 ```
 
-_See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/index.ts)_
+_See code: [src/commands/label/index.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/index.ts)_
 
 ## `ctv label:add [LABEL]`
 
@@ -851,7 +868,7 @@ EXAMPLES
   $ ctv label:add "hello.world" -t "Hello World!"
 ```
 
-_See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/add.ts)_
+_See code: [src/commands/label/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/add.ts)_
 
 ## `ctv label:delete PATTERN`
 
@@ -887,7 +904,7 @@ EXAMPLES
   $ ctv label:delete "admin.*" --force
 ```
 
-_See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/delete.ts)_
+_See code: [src/commands/label/delete.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/delete.ts)_
 
 ## `ctv label:get [QUERY]`
 
@@ -927,7 +944,7 @@ EXAMPLES
   $ ctv label:get home --mode prefix --limit 10
 ```
 
-_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/get.ts)_
+_See code: [src/commands/label/get.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/get.ts)_
 
 ## `ctv label:move OLD-PREFIX NEW-PREFIX`
 
@@ -964,20 +981,20 @@ EXAMPLES
   $ ctv label:move old.section new.section --overwrite --write --json
 ```
 
-_See code: [src/commands/label/move.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/move.ts)_
+_See code: [src/commands/label/move.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/move.ts)_
 
-## `ctv label:rename OLD NEW`
+## `ctv label:rename OLD [NEW]`
 
 Atomically rename a translation key across configured languages
 
 ```
 USAGE
-  $ ctv label:rename OLD NEW [--json] [--dry-run] [--exclude <value>...] [--include <value>...] [--language
+  $ ctv label:rename OLD [NEW] [--json] [--dry-run] [--exclude <value>...] [--include <value>...] [--language
     <value>...] [--write] [--overwrite]
 
 ARGUMENTS
-  OLD  existing exact translation key
-  NEW  new exact translation key
+  OLD    existing exact translation key
+  [NEW]  new exact translation key
 
 FLAGS
   --dry-run              show the immutable plan without writing files
@@ -1001,7 +1018,7 @@ EXAMPLES
   $ ctv label:rename old.key new.key --overwrite --write --json
 ```
 
-_See code: [src/commands/label/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/rename.ts)_
+_See code: [src/commands/label/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/rename.ts)_
 
 ## `ctv label:replace LABEL`
 
@@ -1029,7 +1046,7 @@ EXAMPLES
   $ ctv label:replace hello.world -t="Hello world!!!" -fen
 ```
 
-_See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/replace.ts)_
+_See code: [src/commands/label/replace.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/replace.ts)_
 
 ## `ctv label:suggest TEXT`
 
@@ -1060,7 +1077,7 @@ EXAMPLES
   $ ctv label:suggest "Обрати тип QR-коду" --engine lmstudio --json
 ```
 
-_See code: [src/commands/label/suggest.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/suggest.ts)_
+_See code: [src/commands/label/suggest.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/suggest.ts)_
 
 ## `ctv label:sync`
 
@@ -1104,7 +1121,7 @@ EXAMPLES
   $ ctv label:sync --auto-translate --no-fallback --dry-run
 ```
 
-_See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/label/sync.ts)_
+_See code: [src/commands/label/sync.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/label/sync.ts)_
 
 ## `ctv language:add CODE`
 
@@ -1129,7 +1146,7 @@ EXAMPLES
   $ ctv language:add de --copy-from en
 ```
 
-_See code: [src/commands/language/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/add.ts)_
+_See code: [src/commands/language/add.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/language/add.ts)_
 
 ## `ctv language:list`
 
@@ -1151,7 +1168,7 @@ EXAMPLES
   $ ctv language:list --json
 ```
 
-_See code: [src/commands/language/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/list.ts)_
+_See code: [src/commands/language/list.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/language/list.ts)_
 
 ## `ctv language:remove CODE`
 
@@ -1185,7 +1202,7 @@ EXAMPLES
   $ ctv language:remove uk --delete-file --force
 ```
 
-_See code: [src/commands/language/remove.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/remove.ts)_
+_See code: [src/commands/language/remove.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/language/remove.ts)_
 
 ## `ctv language:rename FROM TO`
 
@@ -1206,7 +1223,24 @@ EXAMPLES
   $ ctv language:rename en en-US
 ```
 
-_See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/language/rename.ts)_
+_See code: [src/commands/language/rename.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/language/rename.ts)_
+
+## `ctv preset`
+
+Install IDE run configuration presets
+
+```
+USAGE
+  $ ctv preset
+
+DESCRIPTION
+  Install IDE run configuration presets
+
+EXAMPLES
+  $ ctv preset
+```
+
+_See code: [src/commands/preset.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/preset.ts)_
 
 ## `ctv status`
 
@@ -1242,7 +1276,7 @@ EXAMPLES
   $ ctv status --fail-on warning
 ```
 
-_See code: [src/commands/status.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/status.ts)_
+_See code: [src/commands/status.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/status.ts)_
 
 ## `ctv translate [TEXT]`
 
@@ -1300,7 +1334,7 @@ EXAMPLES
   $ ctv translate --key home.title --to uk --write --confirm
 ```
 
-_See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.10/src/commands/translate.ts)_
+_See code: [src/commands/translate.ts](https://github.com/4746/transverto/blob/v2.0.0-beta.11/src/commands/translate.ts)_
 <!-- commandsstop -->
 
 ---
