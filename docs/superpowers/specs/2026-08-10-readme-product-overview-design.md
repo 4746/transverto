@@ -34,11 +34,35 @@ The description should identify the artifact format, core workflow, AI support, 
 
 ## Typical workflow
 
-Show one compact shell block that demonstrates the normal progression without explaining every flag:
+Show installation first:
 
 ```shell
 npm install --save-dev @cli107/transverto
-npx ctv init --minimal --languages en,uk --source en
+```
+
+Then show two labeled initialization alternatives so readers can see that both simple language codes and regional locale codes are supported:
+
+```shell
+# Simple language codes
+npx ctv init --minimal \
+  --languages en,es,de,fr,uk \
+  --source en
+```
+
+```shell
+# Regional locale codes
+npx ctv init --minimal \
+  --languages en-US,en-GB,es-ES,es-419,de-DE,fr-FR,pt-BR,pt-PT,uk-UA \
+  --source en-US
+```
+
+Follow the alternatives with this explanation:
+
+> Transverto supports both simple language codes and regional locale codes, so projects can keep general translations or maintain country-specific variants.
+
+Complete the compact workflow using the simple-language project:
+
+```shell
 npx ctv label:add home.title --text "Welcome"
 npx ctv translate --key home.title --to uk --write
 ```
