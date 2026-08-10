@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {test} from 'node:test'
 
+import {CTV_CONFIG_SCHEMA_PATH} from '../../dist/shared/constants.js'
 import {
   createConfig,
   createProject,
@@ -24,7 +25,9 @@ test('language:remove --force deletes the language file by default', async testC
 
   assert.equal(result.exitCode, 0, result.stderr)
   assert.equal(pathExists(project.file('es')), false)
-  assert.deepEqual((await readJson(project.configFile)).languages, ['en', 'uk'])
+  const config = await readJson(project.configFile)
+  assert.deepEqual(config.languages, ['en', 'uk'])
+  assert.equal(config.$schema, CTV_CONFIG_SCHEMA_PATH)
   const types = await fs.promises.readFile(project.typesFile, 'utf8')
   assert.doesNotMatch(types, /ES = 'es'/)
 })

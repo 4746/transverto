@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/4746/transverto/main/schema/ctv.config.schema.json",
+  "title": "Transverto configuration",
+  "description": "Configures Transverto translation files, generated types, batching, caching, and AI engine profiles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "basePath",
+    "basePathEnum",
+    "batch",
+    "cache",
+    "engine",
+    "engines",
+    "fallback",
+    "labelSuggestionCount",
+    "labelSuggestionShowInvalid",
+    "labelValidation",
+    "langCodeDefault",
+    "languages",
+    "nameEnum"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Enables editor validation, completion, and hover documentation for this file."
+    },
+    "basePath": {
+      "$ref": "#/$defs/projectPath",
+      "description": "Project-relative directory containing one JSON translation dictionary per language.",
+      "default": "dist/i18n",
+      "examples": [
+        "dist/i18n"
+      ]
+    },
+    "basePathEnum": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/projectPath"
+        },
+        {
+          "type": "string",
+          "pattern": "\\.ts$"
+        }
+      ],
+      "description": "Project-relative path of the generated TypeScript language types file.",
+      "default": "dist/i18n/language.ts",
+      "examples": [
+        "dist/i18n/language.ts"
+      ]
+    },
+    "batch": {
+      "$ref": "#/$defs/batch"
+    },
+    "cache": {
+      "$ref": "#/$defs/cache"
+    },
+    "engine": {
+      "$ref": "#/$defs/profileReference",
+      "description": "Name of the primary engine profile, or null when AI translation is disabled."
+    },
+    "engines": {
+      "type": "object",
+      "description": "Named AI translation engine profiles. Profile names may contain lowercase letters, digits, dots, underscores, and hyphens.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/engineProfile"
+      },
+      "default": {}
+    },
+    "fallback": {
+      "$ref": "#/$defs/profileReference",
+      "description": "Fallback engine profile used after a recoverable primary-engine failure, or null to disable fallback."
+    },
+    "labelSuggestionCount": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5,
+      "description": "Number of localization-key suggestions requested from the selected engine."
+    },
+    "labelSuggestionShowInvalid": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether suggestions that fail labelValidation are included in output."
+    },
+    "labelValidation": {
+      "type": "string",
+      "minLength": 1,
+      "default": "^[a-z0-9\\.\\_]{2,100}$",
+      "description": "JavaScript regular expression used to validate localization keys."
+    },
+    "langCodeDefault": {
+      "$ref": "#/$defs/languageCode",
+      "description": "Source language code. It must also occur in languages; the CLI validates that relationship."
+    },
+    "languages": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/languageCode"
+      },
+      "default": [
+        "en"
+      ],
+      "examples": [
+        [
+          "en",
+          "uk"
+        ]
+      ],
+      "description": "Configured language codes in output order."
+    },
+    "nameEnum": {
+      "type": "string",
+      "minLength": 1,
+      "default": "LanguageLabel",
+      "description": "Base name used for generated TypeScript language types."
+    }
+  },
+  "$defs": {
+    "projectPath": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "not": {
+            "pattern": "^(?:[A-Za-z]:[\\\\/]|[\\\\/])"
+          }
+        },
+        {
+          "not": {
+            "pattern": "(^|[\\\\/])\\.\\.($|[\\\\/])"
+          }
+        }
+      ]
+    },
+    "languageCode": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+      "examples": [
+        "en",
+        "uk",
+        "en-US",
+        "zh-Hans"
+      ]
+    },
+    "profileReference": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "batch": {
+      "type": "object",
+      "description": "Defaults for batching and scheduling translation requests.",
+      "additionalProperties": false,
+      "required": [
+        "concurrency",
+        "delayMs",
+        "maxChars",
+        "maxItems",
+        "mode",
+        "retry"
+      ],
+      "properties": {
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Maximum number of translation requests processed concurrently."
+        },
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Minimum delay in milliseconds between starting requests."
+        },
+        "maxChars": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum source characters processed in one run, or null for no limit."
+        },
+        "maxItems": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum translation items processed in one run, or null for no limit."
+        },
+        "mode": {
+          "enum": [
+            "per-language",
+            "multi-language"
+          ],
+          "default": "per-language",
+          "description": "Whether each target language uses a separate request or all targets share one request."
+        },
+        "retry": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 2,
+          "description": "Number of retries after a recoverable translation failure."
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "description": "Translation-result cache retention settings.",
+      "additionalProperties": false,
+      "required": [
+        "maxEntries",
+        "ttlMs"
+      ],
+      "properties": {
+        "maxEntries": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1000,
+          "description": "Maximum number of cached translations retained."
+        },
+        "ttlMs": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 2592000000,
+          "description": "Cache entry lifetime in milliseconds, or null to disable expiration."
+        }
+      }
+    },
+    "engineProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "provider"
+      ],
+      "properties": {
+        "apiKeyEnv": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "examples": [
+            "CTV_OPENROUTER_API_KEY"
+          ],
+          "description": "Environment variable containing the provider API key."
+        },
+        "baseUrl": {
+          "type": "string",
+          "pattern": "^https?://[^\\s]+$",
+          "examples": [
+            "http://localhost:1234/v1"
+          ],
+          "description": "HTTP or HTTPS base URL for the provider's OpenAI-compatible API."
+        },
+        "labelSuggestionPrompt": {
+          "type": "string",
+          "description": "Instruction used when requesting localization-key suggestions."
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Provider-specific model identifier."
+        },
+        "provider": {
+          "enum": [
+            "lmstudio",
+            "google-ai",
+            "openrouter",
+            "openai-compatible"
+          ],
+          "description": "Translation provider protocol and default endpoint selection."
+        },
+        "reasoning": {
+          "type": "boolean",
+          "description": "Whether the model may use reasoning mode when supported."
+        },
+        "systemPrompt": {
+          "type": "string",
+          "description": "Custom system instruction prepended to translation requests."
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature from 0 through 2."
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30000,
+          "description": "Request timeout in milliseconds."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "enum": [
+                  "google-ai",
+                  "openrouter"
+                ]
+              }
+            },
+            "required": [
+              "provider"
+            ]
+          },
+          "then": {
+            "required": [
+              "apiKeyEnv"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "openai-compatible"
+              }
+            },
+            "required": [
+              "provider"
+            ]
+          },
+          "then": {
+            "required": [
+              "baseUrl"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

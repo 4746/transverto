@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {test} from 'node:test'
 
+import {CTV_CONFIG_SCHEMA_PATH} from '../../dist/shared/constants.js'
 import {
   createTemporaryProject,
   pathExists,
@@ -20,7 +21,10 @@ test('init creates a minimal project with configured language files', async test
   const result = await runCli(project, initArguments)
 
   assert.equal(result.exitCode, 0, result.stderr)
-  const config = await readJson(project.configFile)
+  const configText = await fs.promises.readFile(project.configFile, 'utf8')
+  const config = JSON.parse(configText)
+  assert.equal(config.$schema, CTV_CONFIG_SCHEMA_PATH)
+  assert.match(configText, /^\{\n {2}"\$schema":/)
   assert.deepEqual(config.languages, ['en', 'uk'])
   assert.equal(config.langCodeDefault, 'en')
   assert.deepEqual(await readJson(project.file('en')), {})
