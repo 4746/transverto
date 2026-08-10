@@ -18,6 +18,8 @@ Version 1 supports these JetBrains run configurations:
 
 The command is interactive only. Non-interactive provider, command-selection, or overwrite flags are outside this version's scope. Additional IDE providers are also outside scope, but the catalog must leave a clear extension point for them.
 
+The existing `label:rename` command receives a focused compatibility adjustment for the JetBrains workflow: its old key remains the first argument, while an omitted new key is requested through an interactive terminal prompt. Passing both arguments continues to work unchanged, and omitting the new key in a non-interactive process remains a usage error.
+
 ## User Experience
 
 The user runs:
@@ -70,7 +72,7 @@ presets/
 
 Their contents are based on the supplied, working JetBrains configurations. The npm package's `files` allowlist includes `/presets`, so the CLI reads the same canonical XML in development and after installation. Static assets are preferred over runtime XML generation to keep the IDE configuration inspectable and byte-for-byte testable.
 
-Command arguments in the assets use a consistent npm argument separator and the quoting required for JetBrains `$SelectedText$` substitution. Commands that consume selected editor text quote that macro; `doctor` and `status` do not include it.
+Command arguments in the assets use a consistent npm argument separator and the quoting required for JetBrains `$SelectedText$` substitution. Commands that consume selected editor text quote that macro; `doctor` and `status` do not include it. The `rename` asset passes only the selected old key. Once the run configuration opens a terminal, `label:rename` prompts there for the new key instead of requiring two IDE macros at launch time.
 
 ## Components
 
@@ -96,6 +98,10 @@ Planning performs no writes. A `.run` path that exists but is not a directory, a
 ### Preset executor
 
 The executor applies the planner's mutations through the existing atomic file-transaction utility. Preconditions prevent overwriting files that changed after planning. If a later mutation fails, earlier mutations are rolled back to their original bytes.
+
+### Interactive rename fallback
+
+`src/commands/label/rename.ts` makes the `new` argument optional at parse time. When it is absent and stdin/stdout are TTYs, the command asks for `New translation key:` with a non-empty-value validator, then passes the answer into the existing mutation planner. When it is absent outside an interactive terminal, the command reports the same class of usage error as other missing interactive inputs. No prompt is shown when the second positional argument is supplied.
 
 ## Data Flow
 
@@ -137,7 +143,8 @@ Unit tests cover:
 - invalid directory and target types;
 - missing assets and unknown catalog values;
 - transaction preconditions and rollback behavior;
-- exact expected contents of all seven static XML assets.
+- exact expected contents of all seven static XML assets;
+- interactive `label:rename OLD` prompting, unchanged `label:rename OLD NEW`, and the missing-new-key non-interactive error.
 
 End-to-end coverage exercises the primary interactive flow in a temporary consumer project and verifies the resulting `.run` files and `package.json`. A conflict scenario verifies the single confirmation and the preserve-on-`No` behavior.
 
@@ -148,6 +155,7 @@ Release verification includes the normal build, full test suite, lint, and `npm 
 - Running `ctv preset` can install any non-empty subset of the seven JetBrains configurations.
 - Pressing Enter through both selection prompts installs the complete preset.
 - The resulting run configurations call the local `ctv` npm script and support JetBrains selected-text substitution where applicable.
+- Running the `rename` configuration uses selected text as the old key and asks for the new key in the opened terminal.
 - Existing XML files are overwritten only after one default-Yes confirmation.
 - Conflicting npm scripts are never replaced.
 - Failures do not leave partial changes.
