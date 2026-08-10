@@ -23,7 +23,7 @@
   ],
   "properties": {
     "$schema": {
-      "const": "https://raw.githubusercontent.com/4746/transverto/main/schema/ctv.config.schema.json",
+      "type": "string",
       "description": "Enables editor validation, completion, and hover documentation for this file."
     },
     "basePath": {

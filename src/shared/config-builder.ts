@@ -5,7 +5,7 @@ import {
   IConfig,
   LANG_CODE_DEFAULT,
 } from './config.js'
-import {CTV_CONFIG_SCHEMA_URL} from './constants.js'
+import {CTV_CONFIG_SCHEMA_PATH} from './constants.js'
 import {validateEngineConfiguration} from './engine-profile.js'
 import {IEngineProfile} from './entities/translation.engine.js'
 
@@ -122,7 +122,7 @@ export function buildConfig(input: IConfigBuilderInput): IConfig {
   const validated = validateConfigInput(input)
 
   return {
-    $schema: CTV_CONFIG_SCHEMA_URL,
+    $schema: CTV_CONFIG_SCHEMA_PATH,
     basePath: validated.translationsPath,
     basePathEnum: validated.typesPath,
     batch: {...CONFIG_DEFAULT.batch},

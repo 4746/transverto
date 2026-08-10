@@ -5,7 +5,7 @@ import path from 'node:path'
 import {test} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
-import {CTV_CONFIG_SCHEMA_URL} from '../../dist/shared/constants.js'
+import {CTV_CONFIG_SCHEMA_PATH} from '../../dist/shared/constants.js'
 import {createConfig} from '../helpers/project-fixture.mjs'
 
 const directory = path.dirname(fileURLToPath(import.meta.url))
@@ -24,8 +24,20 @@ const assertInvalid = value => {
 
 test('schema identity matches generated configuration metadata', () => {
   assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema')
-  assert.equal(schema.$id, CTV_CONFIG_SCHEMA_URL)
-  assert.equal(createConfig().$schema, CTV_CONFIG_SCHEMA_URL)
+  assert.equal(
+    schema.$id,
+    'https://raw.githubusercontent.com/4746/transverto/main/schema/ctv.config.schema.json',
+  )
+  assert.equal(
+    CTV_CONFIG_SCHEMA_PATH,
+    './node_modules/@cli107/transverto/schema/ctv.config.schema.json',
+  )
+  assert.equal(createConfig().$schema, CTV_CONFIG_SCHEMA_PATH)
+})
+
+test('schema accepts user-defined schema references as strings', () => {
+  assertValid(createConfig({$schema: 'user-controlled-reference'}))
+  assertInvalid(createConfig({$schema: 42}))
 })
 
 test('schema accepts minimal and configured engine profiles', () => {

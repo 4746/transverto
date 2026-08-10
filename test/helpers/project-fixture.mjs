@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-import {CTV_CONFIG_SCHEMA_URL} from '../../dist/shared/constants.js'
+import {CTV_CONFIG_SCHEMA_PATH} from '../../dist/shared/constants.js'
 
 const FIXTURE_PREFIX = 'transverto-critical-tests-'
 const helperDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -23,7 +23,7 @@ export const createConfig = ({
   source = 'en',
   ...overrides
 } = {}) => ({
-  $schema: CTV_CONFIG_SCHEMA_URL,
+  $schema: CTV_CONFIG_SCHEMA_PATH,
   basePath: 'dist/i18n',
   basePathEnum: 'dist/i18n/language.ts',
   batch: {
