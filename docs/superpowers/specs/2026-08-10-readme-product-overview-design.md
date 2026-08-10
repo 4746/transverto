@@ -63,7 +63,7 @@ Follow the alternatives with this explanation:
 Complete the compact workflow using the simple-language project:
 
 ```shell
-npx ctv label:add home.title --text "Welcome"
+npx ctv label:add home.title --translation "Welcome"
 npx ctv label:get home --mode prefix
 npx ctv label:suggest "Welcome to your dashboard" --count 5
 npx ctv translate --key home.title --to uk --write
