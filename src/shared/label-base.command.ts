@@ -99,7 +99,7 @@ export abstract class LabelBaseCommand<T extends typeof Command> extends Command
 
   protected async getTranslation(text: string, langCode: string, clearPromptOnDone = true) {
     if (text) {
-      return text;
+      return text.trim();
     }
 
     return input({
@@ -119,7 +119,7 @@ export abstract class LabelBaseCommand<T extends typeof Command> extends Command
       }
     }, {
       clearPromptOnDone,
-    })
+    }).then(value => value.trim())
   }
 
   protected async getTranslationLanguages(): Promise<TTranslation> {

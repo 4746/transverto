@@ -5,7 +5,7 @@
     <scripts>
       <script value="ctv" />
     </scripts>
-    <arguments value="-- doctor" />
+    <arguments value="doctor" />
     <node-interpreter value="project" />
     <envs />
     <method v="2" />

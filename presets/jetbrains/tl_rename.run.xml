@@ -5,7 +5,7 @@
     <scripts>
       <script value="ctv" />
     </scripts>
-    <arguments value="-- label:rename \&quot;$SelectedText$\&quot;" />
+    <arguments value="label:rename \&quot;$SelectedText$\&quot;" />
     <node-interpreter value="project" />
     <envs />
     <method v="2" />

@@ -5,7 +5,7 @@
     <scripts>
       <script value="ctv" />
     </scripts>
-    <arguments value="-- label:suggest \&quot;$SelectedText$\&quot;" />
+    <arguments value="label:suggest \&quot;$SelectedText$\&quot;" />
     <node-interpreter value="project" />
     <envs />
     <method v="2" />
