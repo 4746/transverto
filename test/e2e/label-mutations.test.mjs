@@ -389,3 +389,15 @@ test('language filter mutates only the selected dictionary', async testContext =
   assert.deepEqual(await readBytes(project.file('en')), enBefore)
   assert.deepEqual((await readJson(project.file('uk'))).home, {keep: 'Залишити'})
 })
+
+test('label:add trims leading and trailing whitespace from the source translation', async testContext => {
+  const project = await createProject(testContext)
+
+  const result = await runCli(project, [
+    'label:add', 'label.settings', '--fromLangCode', 'uk',
+    '--translation', ' Налаштування ', '--noAutoTranslate', '--silent',
+  ])
+
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.equal((await readJson(project.file('uk'))).label.settings, 'Налаштування')
+})
