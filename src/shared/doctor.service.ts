@@ -16,6 +16,7 @@ import {
   TDiagnosticSeverity,
 } from './entities/diagnostic.js'
 import {IResolvedEngineProfile} from './entities/translation.engine.js'
+import {isStringArray} from './string-array.js'
 import {validateTranslationCacheConfig} from './translation-cache.service.js'
 
 interface IDoctorOptions {
@@ -147,6 +148,7 @@ const analyzeDictionary = (
   const visit = (object: TJsonObject, prefix = ''): void => {
     for (const [key, value] of Object.entries(object)) {
       const keyPath = prefix ? `${prefix}.${key}` : key
+      if (isStringArray(value)) continue
       const kind = isObject(value) ? 'object' : 'leaf'
       const previousKind = localShapes.get(keyPath)
 

@@ -1,4 +1,5 @@
 import {IConfig} from './config.js'
+import {isStringArray} from './string-array.js'
 
 type TDictionary = Record<string, unknown>
 
@@ -13,6 +14,7 @@ export function collectTranslationKeys(dictionary: TDictionary): string[] {
       const keyPath = prefix ? `${prefix}.${key}` : key
       if (isObject(value)) visit(value, keyPath)
       else if (typeof value === 'string') keys.push(keyPath)
+      else if (isStringArray(value)) continue
       else throw new Error(`Translation leaf "${keyPath}" must be a string.`)
     }
   }

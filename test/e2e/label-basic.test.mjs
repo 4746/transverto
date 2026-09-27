@@ -56,3 +56,24 @@ test('label get requires a query non-interactively and preserves dictionaries', 
   assert.deepEqual(await readBytes(project.file('en')), enBefore)
   assert.deepEqual(await readBytes(project.file('uk')), ukBefore)
 })
+
+test('manual string arrays under any key do not block label get', async testContext => {
+  const contactKey = 'contact_us'
+  const project = await createProject(testContext, {
+    dictionaries: {
+      en: {date: {forms: {day: ['Day', 'Days']}, plural: {hour: ['Hour', 'Hours']}}, menu: {[contactKey]: 'Contact us'}},
+      uk: {date: {forms: {day: ['День', 'Дні', 'Днів']}}, menu: {[contactKey]: 'Контакти'}},
+    },
+  })
+
+  const result = await runCli(project, ['label:get', 'menu.contact_us', '--mode', 'exact', '--json'])
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.deepEqual(parseJsonOutput(result).results, [{
+    key: 'menu.contact_us',
+    translations: [
+      {language: 'en', value: 'Contact us'},
+      {language: 'uk', value: 'Контакти'},
+      {language: 'de', value: null},
+    ],
+  }])
+})

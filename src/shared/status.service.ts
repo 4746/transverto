@@ -16,6 +16,7 @@ import {
 } from './entities/status.js'
 import {matchesKeyFilters, normalizeKeyPatterns} from './key-pattern.js'
 import {comparePlaceholders} from './placeholder.js'
+import {isStringArray} from './string-array.js'
 
 type TDictionary = Record<string, unknown>
 
@@ -72,6 +73,7 @@ const flattenDictionary = (dictionary: TDictionary): Map<string, string> => {
       const keyPath = prefix ? `${prefix}.${key}` : key
       if (isObject(value)) visit(value, keyPath)
       else if (typeof value === 'string') leaves.set(keyPath, value)
+      else if (isStringArray(value)) continue
       else throw new TypeError(`Translation leaf "${keyPath}" must be a string.`)
     }
   }
