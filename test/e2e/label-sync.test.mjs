@@ -168,15 +168,15 @@ test('invalid input and non-TTY mutation exit 2 before writes', async testContex
   assert.equal(pathExists(invalidProject.typesFile), false)
 })
 
-test('sync preserves manual string arrays under any key and excludes them from generated label types', async testContext => {
+test('sync preserves manual string arrays and includes their keys in generated label types', async testContext => {
   const contactKey = 'contact_us'
-  const sourcePlural = ['Day', 'Days']
+  const sourcePlural = ['Day', 'Days', 'Many days']
   const targetPlural = ['День', 'Дні', 'Днів']
   const project = await createProject(testContext, {
     config: createConfig({languages: ['en', 'uk']}),
     dictionaries: {
-      en: {date: {forms: {day: sourcePlural}}, menu: {[contactKey]: 'Contact us'}},
-      uk: {date: {forms: {day: targetPlural}}},
+      en: {date: {forms: {day: sourcePlural}}, menu: {[contactKey]: 'Contact us'}, plural: {day: ['Day', 'Days'], hour: ['Hour', 'Hours']}},
+      uk: {date: {forms: {day: targetPlural}}, plural: {day: ['День', 'Дні', 'Днів'], hour: ['Година', 'Години', 'Годин']}},
     },
   })
 
@@ -187,8 +187,13 @@ test('sync preserves manual string arrays under any key and excludes them from g
   assert.deepEqual(uk.date.forms.day, targetPlural)
   assert.equal(uk.menu[contactKey], '')
   const types = await fs.promises.readFile(project.typesFile, 'utf8')
-  assert.match(types, /menu\.contact_us/)
-  assert.doesNotMatch(types, /date\.forms\.day/)
+  const keyType = types.match(/^export type TLanguageLabel = ([^;]+);$/m)?.[1]
+  assert.deepEqual(keyType?.match(/'[^']+'/g), [
+    "'date.forms.day'",
+    "'menu.contact_us'",
+    "'plural.day'",
+    "'plural.hour'",
+  ])
 })
 
 test('structural conflict exits 1 and aborts every write', async testContext => {
