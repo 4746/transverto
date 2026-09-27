@@ -10,6 +10,7 @@ import type {
 } from './entities/sync.js'
 
 import {validateConfigInput, validateLanguageCodes} from './config-builder.js'
+import {isStringArray} from './string-array.js'
 
 export interface ISyncLoadOptions {
   cwd?: string
@@ -65,6 +66,8 @@ export function flattenSyncDictionary(
       } else if (typeof value === 'string') {
         if (leaves.has(keyPath)) throw new Error(`Duplicate translation key path "${keyPath}" in ${file}.`)
         leaves.set(keyPath, value)
+      } else if (isStringArray(value)) {
+        continue
       } else {
         throw new TypeError(`Translation leaf "${keyPath}" must be a string in ${file}.`)
       }

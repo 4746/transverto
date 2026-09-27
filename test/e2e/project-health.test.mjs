@@ -11,11 +11,13 @@ import {
 
 const dictionaries = {
   en: {
+    date: {forms: {day: ['Day', 'Days']}},
     empty: 'Empty',
     greeting: 'Hello {name}',
     ready: 'Ready',
   },
   uk: {
+    date: {forms: {day: ['День', 'Дні', 'Днів']}},
     extra: 'Зайве',
     greeting: 'Привіт',
     ready: 'Ready',

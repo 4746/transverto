@@ -159,13 +159,36 @@ test('invalid input and non-TTY mutation exit 2 before writes', async testContex
     config: createConfig({languages: ['en', 'uk']}),
     dictionaries: {
       en: {},
-      uk: {bad: 1},
+      uk: {bad: ['valid', 1]},
     },
   })
   const invalid = await runCli(invalidProject, ['label:sync', '--dry-run', '--json'])
   assert.equal(invalid.exitCode, 2)
   assert.match(parseJsonOutput(invalid).error.message, /Translation leaf "bad" must be a string/)
   assert.equal(pathExists(invalidProject.typesFile), false)
+})
+
+test('sync preserves manual string arrays under any key and excludes them from generated label types', async testContext => {
+  const contactKey = 'contact_us'
+  const sourcePlural = ['Day', 'Days']
+  const targetPlural = ['День', 'Дні', 'Днів']
+  const project = await createProject(testContext, {
+    config: createConfig({languages: ['en', 'uk']}),
+    dictionaries: {
+      en: {date: {forms: {day: sourcePlural}}, menu: {[contactKey]: 'Contact us'}},
+      uk: {date: {forms: {day: targetPlural}}},
+    },
+  })
+
+  const result = await runCli(project, ['label:sync', '--write', '--json'])
+  assert.equal(result.exitCode, 0, result.stderr)
+  assert.deepEqual((await readJson(project.file('en'))).date.forms.day, sourcePlural)
+  const uk = await readJson(project.file('uk'))
+  assert.deepEqual(uk.date.forms.day, targetPlural)
+  assert.equal(uk.menu[contactKey], '')
+  const types = await fs.promises.readFile(project.typesFile, 'utf8')
+  assert.match(types, /menu\.contact_us/)
+  assert.doesNotMatch(types, /date\.forms\.day/)
 })
 
 test('structural conflict exits 1 and aborts every write', async testContext => {
