@@ -13,8 +13,7 @@ export function collectTranslationKeys(dictionary: TDictionary): string[] {
     for (const [key, value] of Object.entries(object)) {
       const keyPath = prefix ? `${prefix}.${key}` : key
       if (isObject(value)) visit(value, keyPath)
-      else if (typeof value === 'string') keys.push(keyPath)
-      else if (isStringArray(value)) continue
+      else if (typeof value === 'string' || isStringArray(value)) keys.push(keyPath)
       else throw new Error(`Translation leaf "${keyPath}" must be a string.`)
     }
   }
